@@ -4,6 +4,7 @@ const { baseEmbed, COLORS } = require('../utils/embeds');
 const { logAction } = require('../utils/logger');
 const { lockChannel, unlockChannel } = require('../utils/channelLock');
 const { schedulePurge, stopPurge } = require('../utils/autopurge');
+const { isRaidActive, endRaidMode } = require('../utils/antiraid');
 const { resolveUser } = require('../utils/args');
 
 const CATEGORY = 'Moderation';
@@ -266,6 +267,55 @@ module.exports = [
       saveConfig(message.guild.id);
       await logAction(message.guild, `♻️ ${message.author.tag} cleared ${count} warning(s) for ${user.tag}`);
       return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`Cleared ${count} warning(s) for **${user.tag}**.`)] });
+    },
+  },
+  {
+    name: 'antiraid',
+    category: CATEGORY,
+    description: 'Toggle anti-raid protection or end active raid mode. Usage: antiraid <on|off|end|status>',
+    permissions: [PermissionFlagsBits.Administrator],
+    async execute(message, args, config) {
+      const action = args[0]?.toLowerCase();
+
+      if (action === 'on') {
+        config.antiraid.enabled = true;
+        saveConfig(message.guild.id);
+        return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription('🛡️ Anti-raid protection enabled.')] });
+      }
+
+      if (action === 'off') {
+        config.antiraid.enabled = false;
+        saveConfig(message.guild.id);
+        return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription('🛡️ Anti-raid protection disabled.')] });
+      }
+
+      if (action === 'end') {
+        const result = await endRaidMode(message.guild, message.author);
+        if (result.notActive) return message.reply('Raid mode is not currently active.');
+        return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription('✅ Raid mode ended and locked channels restored.')] });
+      }
+
+      if (action === 'status') {
+        const active = isRaidActive(message.guild.id);
+        return message.channel.send({
+          embeds: [
+            baseEmbed()
+              .setTitle('Anti-raid Status')
+              .addFields(
+                { name: 'Enabled', value: config.antiraid.enabled ? 'Yes' : 'No', inline: true },
+                { name: 'Raid mode active', value: active ? 'Yes 🚨' : 'No', inline: true },
+                { name: 'Join threshold', value: `${config.antiraid.joinThreshold} joins / ${config.antiraid.windowSeconds}s`, inline: true },
+                {
+                  name: 'Min account age',
+                  value: config.antiraid.minAccountAgeMinutes > 0 ? `${config.antiraid.minAccountAgeMinutes}m` : 'Disabled',
+                  inline: true,
+                },
+              ),
+          ],
+        });
+      }
+
+      return message.reply('Usage: `antiraid <on|off|end|status>` — use `/antiraid settings` for detailed tuning.');
     },
   },
   {

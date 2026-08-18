@@ -28,6 +28,15 @@ function defaultConfig() {
     giveaways: {},
     locks: {},
     autopurge: {},
+    antiraid: {
+      enabled: false,
+      joinThreshold: 5,
+      windowSeconds: 10,
+      minAccountAgeMinutes: 0,
+      action: 'kick',
+      lockdownOnRaid: true,
+      alertChannel: null,
+    },
     tickets: {
       types: {},
       settings: {
@@ -64,6 +73,7 @@ function getConfig(guildId) {
         ...config,
         ...saved,
         automod: { ...config.automod, ...saved.automod },
+        antiraid: { ...config.antiraid, ...saved.antiraid },
         tickets: {
           ...config.tickets,
           ...saved.tickets,

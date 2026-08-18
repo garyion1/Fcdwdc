@@ -70,8 +70,9 @@ Core slash commands (see [`docs/boat-bot.md`](../docs/boat-bot.md#commands)):
 Additional slash commands:
 `/ticketsetup` (configure ticket types/panels/behavior), `/lock` / `/unlock` (channel
 lock that also blocks and locks threads), `/autopurge` (schedule a channel to
-auto-clean on a repeating interval), `/customcommand`, `/embed`, `/reactionrole`,
-`/giveaway`
+auto-clean on a repeating interval), `/antiraid` (burst-join detection with optional
+auto-lockdown, plus an always-on minimum account age gate), `/customcommand`,
+`/embed`, `/reactionrole`, `/giveaway`
 
 ### Text (prefix) commands
 
@@ -81,7 +82,7 @@ prefixes (default: `!` `.` `?` `,` `$` — manage them with `/settings prefix`).
 
 - **Moderation** — `lock`, `unlock`, `kick`, `ban`, `unban`, `timeout`/`mute`,
   `untimeout`/`unmute`, `warn`, `warnings`, `warnclear`, `clear`/`purge`, `purgeuser`,
-  `purgebots`, `autopurge`, `slowmode`, `nick`
+  `purgebots`, `autopurge`, `antiraid`, `slowmode`, `nick`
 - **Utility** — `ping`, `avatar`, `userinfo`/`whois`, `serverinfo`/`guildinfo`,
   `roleinfo`, `banner`, `invite`, `botinfo`/`about`, `uptime`, `prefix`,
   `channelinfo`, `membercount`, `id`, `firstmessage`/`firstmsg`, `emojis`
