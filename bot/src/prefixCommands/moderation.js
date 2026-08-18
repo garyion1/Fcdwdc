@@ -216,20 +216,6 @@ module.exports = [
     },
   },
   {
-    name: 'nuke',
-    category: CATEGORY,
-    description: 'Instantly wipe this channel by cloning it and deleting the original.',
-    permissions: [PermissionFlagsBits.ManageChannels],
-    async execute(message) {
-      const channel = message.channel;
-      const cloned = await channel.clone({ reason: `Nuked by ${message.author.tag}` });
-      await cloned.setPosition(channel.position).catch(() => {});
-      await logAction(message.guild, `💥 ${channel.name} was nuked by ${message.author.tag}`);
-      await channel.delete().catch(() => {});
-      await cloned.send({ embeds: [baseEmbed(COLORS.danger).setTitle('💥 Channel Nuked').setDescription(`This channel was nuked by ${message.author.tag}.`)] });
-    },
-  },
-  {
     name: 'purgeuser',
     category: CATEGORY,
     description: "Delete a specific member's recent messages. Usage: purgeuser @user <amount 1-100>",

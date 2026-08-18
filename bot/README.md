@@ -81,12 +81,13 @@ prefixes (default: `!` `.` `?` `,` `$` — manage them with `/settings prefix`).
 
 - **Moderation** — `lock`, `unlock`, `kick`, `ban`, `unban`, `timeout`/`mute`,
   `untimeout`/`unmute`, `warn`, `warnings`, `warnclear`, `clear`/`purge`, `purgeuser`,
-  `purgebots`, `autopurge`, `nuke`, `slowmode`, `nick`
+  `purgebots`, `autopurge`, `slowmode`, `nick`
 - **Utility** — `ping`, `avatar`, `userinfo`/`whois`, `serverinfo`/`guildinfo`,
   `roleinfo`, `banner`, `invite`, `botinfo`/`about`, `uptime`, `prefix`,
   `channelinfo`, `membercount`, `id`, `firstmessage`/`firstmsg`, `emojis`
-- **Fun** — `8ball`, `coinflip`/`flip`, `roll`, `rps`, `poll`, `remind`, `choose`,
-  `slap`, `hug`, `pat`, `rate`, `ship`
+- **Fun** — `8ball`, `coinflip`/`flip`, `roll`, `rps`, `poll`, `remind`, `hug`, `kiss`
+  (`hug`/`kiss` send a reaction gif from [nekos.best](https://nekos.best), an SFW
+  anime-reaction-gif API — no API key needed)
 - **Info** — `commands`/`cmds`
 
 On top of these ~30 built-in commands, server admins can add an unlimited number of

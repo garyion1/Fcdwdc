@@ -1,5 +1,6 @@
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { resolveUser } = require('../utils/args');
+const { fetchReactionGif } = require('../utils/gifs');
 
 const CATEGORY = 'Fun';
 
@@ -109,70 +110,29 @@ module.exports = [
     },
   },
   {
-    name: 'choose',
-    category: CATEGORY,
-    description: 'Pick randomly from a list. Usage: choose option1 | option2 | option3',
-    async execute(message, args) {
-      const options = args
-        .join(' ')
-        .split('|')
-        .map((o) => o.trim())
-        .filter(Boolean);
-      if (options.length < 2) return message.reply('Usage: `choose option1 | option2 | option3`');
-      const pick = options[Math.floor(Math.random() * options.length)];
-      return message.channel.send(`🤔 I choose: **${pick}**`);
-    },
-  },
-  {
-    name: 'slap',
-    category: CATEGORY,
-    description: 'Slap someone. Usage: slap @user',
-    async execute(message, args) {
-      const user = await resolveUser(message, args[0]);
-      if (!user) return message.reply('Usage: `slap @user`');
-      return message.channel.send(`👋 ${message.author} slaps ${user} around a bit with a large trout!`);
-    },
-  },
-  {
     name: 'hug',
     category: CATEGORY,
-    description: 'Hug someone. Usage: hug @user',
+    description: 'Hug someone with a gif. Usage: hug @user',
     async execute(message, args) {
       const user = await resolveUser(message, args[0]);
       if (!user) return message.reply('Usage: `hug @user`');
-      return message.channel.send(`🤗 ${message.author} hugs ${user}!`);
+      const embed = baseEmbed(COLORS.primary).setDescription(`🤗 ${message.author} hugs ${user}!`);
+      const gif = await fetchReactionGif('hug').catch(() => null);
+      if (gif) embed.setImage(gif);
+      return message.channel.send({ embeds: [embed] });
     },
   },
   {
-    name: 'pat',
+    name: 'kiss',
     category: CATEGORY,
-    description: 'Pat someone. Usage: pat @user',
+    description: 'Kiss someone with a gif. Usage: kiss @user',
     async execute(message, args) {
       const user = await resolveUser(message, args[0]);
-      if (!user) return message.reply('Usage: `pat @user`');
-      return message.channel.send(`✋ ${message.author} pats ${user} on the head.`);
-    },
-  },
-  {
-    name: 'rate',
-    category: CATEGORY,
-    description: 'Get a random rating out of 10. Usage: rate <anything>',
-    async execute(message, args) {
-      if (args.length === 0) return message.reply('Usage: `rate <anything>`');
-      const score = Math.floor(Math.random() * 11);
-      return message.channel.send(`I'd rate "${args.join(' ')}" a **${score}/10**.`);
-    },
-  },
-  {
-    name: 'ship',
-    category: CATEGORY,
-    description: 'Ship two people together. Usage: ship @user1 @user2',
-    async execute(message) {
-      const users = message.mentions.users;
-      if (users.size < 2) return message.reply('Usage: `ship @user1 @user2`');
-      const [a, b] = [...users.values()];
-      const score = Math.floor(Math.random() * 101);
-      return message.channel.send(`💘 ${a.username} + ${b.username} = **${score}%** compatible`);
+      if (!user) return message.reply('Usage: `kiss @user`');
+      const embed = baseEmbed(COLORS.primary).setDescription(`💋 ${message.author} kisses ${user}!`);
+      const gif = await fetchReactionGif('kiss').catch(() => null);
+      if (gif) embed.setImage(gif);
+      return message.channel.send({ embeds: [embed] });
     },
   },
 ];
