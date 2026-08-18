@@ -28,6 +28,12 @@ function defaultConfig() {
     giveaways: {},
     locks: {},
     autopurge: {},
+    premium: {
+      active: false,
+      tier: null,
+      licenseKey: null,
+      expiresAt: null,
+    },
     antiraid: {
       enabled: false,
       joinThreshold: 5,
@@ -74,6 +80,7 @@ function getConfig(guildId) {
         ...saved,
         automod: { ...config.automod, ...saved.automod },
         antiraid: { ...config.antiraid, ...saved.antiraid },
+        premium: { ...config.premium, ...saved.premium },
         tickets: {
           ...config.tickets,
           ...saved.tickets,

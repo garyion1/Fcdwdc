@@ -59,7 +59,10 @@ bot/
       args.js                Resolve a @mention or ID to a user
       channelLock.js         Lock/unlock a channel, including active threads
       tickets.js              Ticket open/claim/close, transcripts, panel builders
+      licenses.js             Global license key store (data/global.json)
+      premium.js              Per-guild premium status check + bot-owner check
   data/guilds/             Auto-created per-server config files (git-ignored)
+  data/global.json         Admin server ID + all license keys (git-ignored, sensitive)
 ```
 
 ## Commands
@@ -71,7 +74,8 @@ Additional slash commands:
 `/ticketsetup` (configure ticket types/panels/behavior), `/lock` / `/unlock` (channel
 lock that also blocks and locks threads), `/autopurge` (schedule a channel to
 auto-clean on a repeating interval), `/antiraid` (burst-join detection with optional
-auto-lockdown, plus an always-on minimum account age gate), `/customcommand`,
+auto-lockdown, plus an always-on minimum account age gate), `/license` / `/redeem` /
+`/premium` / `/adminserver` (built-in licensing — see below), `/customcommand`,
 `/embed`, `/reactionrole`, `/giveaway`
 
 ### Text (prefix) commands
@@ -104,8 +108,36 @@ types exist, a claim button, per-user open-ticket limits, transcript logging to 
 channel, and optionally requiring a reason before a ticket can be closed. `/tickets`
 manages the ticket you're currently sitting in (close, add a user, remove a user).
 
+### Licensing (self-managed, no payment backend)
+
+The bot manages its own license keys — there's no Stripe/PayPal integration, so you
+still collect payment however you like (a payment link, manual invoicing, etc.) and
+then hand the buyer a key.
+
+- **Admin/control server** — the *first server the bot ever joins* is automatically
+  designated the admin server (`guildCreate` event, stored in `data/global.json`, not
+  per-guild config — this only happens once). If the wrong server ends up as admin
+  (e.g. a test server), the actual bot owner (checked against the Discord application's
+  owner/team, not just a server admin) can move it with `/adminserver set` in the
+  correct server; `/adminserver status` shows the current one from anywhere.
+- **Issuing a key** — in the admin server, run `/license generate tier:<monthly|lifetime>`.
+  This only works in the admin server, gated to members with Administrator there —
+  that's intentionally your staff-only control panel. Give the generated key to the
+  customer after they pay.
+- **Activating it** — the customer runs `/redeem <key>` in their own server. This
+  works from any server and sets that server's `premium.active`, `premium.tier`, and
+  `premium.expiresAt` (monthly keys expire N days after redemption; lifetime keys
+  never do — expiry is checked lazily on each `isPremiumActive()` call, no cron
+  needed).
+- **Checking status** — `/premium` anywhere, or `/license info <key>` /
+  `/license list` / `/license revoke <key>` in the admin server.
+- **Gating a feature** — nothing is premium-locked yet; call
+  `isPremiumActive(guildId)` from `src/utils/premium.js` inside any command to decide
+  what's free vs. paid. That's a product decision left to you.
+
 ## Not included
 
-The automated purchasing/licensing system described in the docs (checkout, instant
-delivery, linking bot access to a purchase) is a separate backend/e-commerce concern
-and is not part of this bot codebase.
+Real payment collection (Stripe/PayPal checkout, automatic instant delivery on
+payment) is still a separate concern — this system covers key generation and
+redemption, not taking the customer's money. Wiring a payment webhook to call
+`createLicense()` automatically would close that gap if wanted later.
