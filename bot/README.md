@@ -69,7 +69,8 @@ Core slash commands (see [`docs/boat-bot.md`](../docs/boat-bot.md#commands)):
 
 Additional slash commands:
 `/ticketsetup` (configure ticket types/panels/behavior), `/lock` / `/unlock` (channel
-lock that also blocks and locks threads), `/customcommand`, `/embed`, `/reactionrole`,
+lock that also blocks and locks threads), `/autopurge` (schedule a channel to
+auto-clean on a repeating interval), `/customcommand`, `/embed`, `/reactionrole`,
 `/giveaway`
 
 ### Text (prefix) commands
@@ -79,10 +80,13 @@ prefixes (default: `!` `.` `?` `,` `$` — manage them with `/settings prefix`).
 `!commands` in a server for the full grouped list. Built-in categories:
 
 - **Moderation** — `lock`, `unlock`, `kick`, `ban`, `unban`, `timeout`/`mute`,
-  `untimeout`/`unmute`, `warn`, `warnings`, `clear`/`purge`, `slowmode`, `nick`
+  `untimeout`/`unmute`, `warn`, `warnings`, `warnclear`, `clear`/`purge`, `purgeuser`,
+  `purgebots`, `autopurge`, `nuke`, `slowmode`, `nick`
 - **Utility** — `ping`, `avatar`, `userinfo`/`whois`, `serverinfo`/`guildinfo`,
-  `roleinfo`, `banner`, `invite`, `botinfo`/`about`, `uptime`, `prefix`
-- **Fun** — `8ball`, `coinflip`/`flip`, `roll`, `rps`, `poll`, `remind`
+  `roleinfo`, `banner`, `invite`, `botinfo`/`about`, `uptime`, `prefix`,
+  `channelinfo`, `membercount`, `id`, `firstmessage`/`firstmsg`, `emojis`
+- **Fun** — `8ball`, `coinflip`/`flip`, `roll`, `rps`, `poll`, `remind`, `choose`,
+  `slap`, `hug`, `pat`, `rate`, `ship`
 - **Info** — `commands`/`cmds`
 
 On top of these ~30 built-in commands, server admins can add an unlimited number of

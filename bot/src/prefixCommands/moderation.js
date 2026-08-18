@@ -3,6 +3,7 @@ const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { logAction } = require('../utils/logger');
 const { lockChannel, unlockChannel } = require('../utils/channelLock');
+const { schedulePurge, stopPurge } = require('../utils/autopurge');
 const { resolveUser } = require('../utils/args');
 
 const CATEGORY = 'Moderation';
@@ -176,6 +177,109 @@ module.exports = [
       if (!Number.isFinite(seconds) || seconds < 0 || seconds > 21600) return message.reply('Usage: `slowmode <seconds 0-21600>` (0 disables it)');
       await message.channel.setRateLimitPerUser(seconds);
       return message.channel.send(seconds === 0 ? 'Slowmode disabled.' : `Slowmode set to ${seconds} second(s).`);
+    },
+  },
+  {
+    name: 'autopurge',
+    category: CATEGORY,
+    description: 'Automatically purge this channel on a repeating interval. Usage: autopurge <minutes 5-10080|off>',
+    permissions: [PermissionFlagsBits.ManageMessages],
+    async execute(message, args, config, client) {
+      const arg = args[0]?.toLowerCase();
+      if (!arg) return message.reply('Usage: `autopurge <minutes 5-10080>` or `autopurge off`.');
+
+      if (['off', 'stop', 'disable'].includes(arg)) {
+        if (!config.autopurge[message.channel.id]) return message.reply('Autopurge is not enabled in this channel.');
+        stopPurge(message.channel.id);
+        delete config.autopurge[message.channel.id];
+        saveConfig(message.guild.id);
+        return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription('🧹 Autopurge disabled for this channel.')] });
+      }
+
+      const minutes = parseInt(arg, 10);
+      if (!Number.isFinite(minutes) || minutes < 5 || minutes > 10080) {
+        return message.reply('Usage: `autopurge <minutes 5-10080>` or `autopurge off`.');
+      }
+
+      config.autopurge[message.channel.id] = { intervalMinutes: minutes, enabledBy: message.author.id, enabledAt: Date.now() };
+      saveConfig(message.guild.id);
+      schedulePurge(client, message.guild.id, message.channel.id, minutes);
+
+      await logAction(message.guild, `🧹 Autopurge enabled in ${message.channel} every ${minutes}m by ${message.author.tag}`);
+      return message.channel.send({
+        embeds: [
+          baseEmbed(COLORS.warning).setDescription(
+            `🧹 This channel will be automatically purged every ${minutes} minute(s).\n(Only messages under 14 days old can be removed — a Discord API limit.)`,
+          ),
+        ],
+      });
+    },
+  },
+  {
+    name: 'nuke',
+    category: CATEGORY,
+    description: 'Instantly wipe this channel by cloning it and deleting the original.',
+    permissions: [PermissionFlagsBits.ManageChannels],
+    async execute(message) {
+      const channel = message.channel;
+      const cloned = await channel.clone({ reason: `Nuked by ${message.author.tag}` });
+      await cloned.setPosition(channel.position).catch(() => {});
+      await logAction(message.guild, `💥 ${channel.name} was nuked by ${message.author.tag}`);
+      await channel.delete().catch(() => {});
+      await cloned.send({ embeds: [baseEmbed(COLORS.danger).setTitle('💥 Channel Nuked').setDescription(`This channel was nuked by ${message.author.tag}.`)] });
+    },
+  },
+  {
+    name: 'purgeuser',
+    category: CATEGORY,
+    description: "Delete a specific member's recent messages. Usage: purgeuser @user <amount 1-100>",
+    permissions: [PermissionFlagsBits.ManageMessages],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      const amount = parseInt(args[1], 10);
+      if (!user || !Number.isFinite(amount) || amount < 1 || amount > 100) return message.reply('Usage: `purgeuser @user <amount 1-100>`');
+      const recent = await message.channel.messages.fetch({ limit: 100 });
+      const targeted = recent.filter((m) => m.author.id === user.id).first(amount);
+      if (targeted.length === 0) return message.reply(`No recent messages found from ${user.tag}.`);
+      const deleted = await message.channel.bulkDelete(targeted, true).catch(() => null);
+      if (!deleted) return message.reply('Failed to delete messages (they may be older than 14 days).');
+      await logAction(message.guild, `🧹 ${message.author.tag} purged ${deleted.size} message(s) from ${user.tag} in ${message.channel}`);
+      const notice = await message.channel.send(`Deleted ${deleted.size} message(s) from ${user.tag}.`);
+      setTimeout(() => notice.delete().catch(() => {}), 4000);
+    },
+  },
+  {
+    name: 'purgebots',
+    category: CATEGORY,
+    description: 'Delete recent messages sent by bots. Usage: purgebots <amount 1-100>',
+    permissions: [PermissionFlagsBits.ManageMessages],
+    async execute(message, args) {
+      const amount = parseInt(args[0], 10);
+      if (!Number.isFinite(amount) || amount < 1 || amount > 100) return message.reply('Usage: `purgebots <amount 1-100>`');
+      const recent = await message.channel.messages.fetch({ limit: 100 });
+      const targeted = recent.filter((m) => m.author.bot).first(amount);
+      if (targeted.length === 0) return message.reply('No recent bot messages found.');
+      const deleted = await message.channel.bulkDelete(targeted, true).catch(() => null);
+      if (!deleted) return message.reply('Failed to delete messages (they may be older than 14 days).');
+      await logAction(message.guild, `🧹 ${message.author.tag} purged ${deleted.size} bot message(s) in ${message.channel}`);
+      const notice = await message.channel.send(`Deleted ${deleted.size} bot message(s).`);
+      setTimeout(() => notice.delete().catch(() => {}), 4000);
+    },
+  },
+  {
+    name: 'warnclear',
+    category: CATEGORY,
+    description: "Clear all of a member's warnings. Usage: warnclear @user",
+    permissions: [PermissionFlagsBits.ModerateMembers],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      if (!user) return message.reply('Usage: `warnclear @user`');
+      const config = getConfig(message.guild.id);
+      const count = config.warnings[user.id]?.length ?? 0;
+      delete config.warnings[user.id];
+      saveConfig(message.guild.id);
+      await logAction(message.guild, `♻️ ${message.author.tag} cleared ${count} warning(s) for ${user.tag}`);
+      return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`Cleared ${count} warning(s) for **${user.tag}**.`)] });
     },
   },
   {

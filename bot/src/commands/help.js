@@ -26,6 +26,7 @@ module.exports = {
         { name: '/moderation', value: 'Access moderation tools.' },
         { name: '/lock', value: 'Lock a channel (blocks messages and threads).' },
         { name: '/unlock', value: 'Unlock a channel.' },
+        { name: '/autopurge', value: 'Auto-purge a channel on a repeating interval.' },
         { name: '/settings', value: 'Manage bot settings, including prefixes.' },
         { name: '/support', value: 'Get help from the support team.' },
         { name: '/customcommand', value: 'Create custom text commands.' },

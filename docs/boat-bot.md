@@ -46,6 +46,7 @@ A powerful Discord bot built for easy server management — fast, reliable, and 
 | `/moderation`   | Access moderation tools                              |
 | `/lock`         | Lock a channel — blocks messages and threads          |
 | `/unlock`       | Unlock a channel                                      |
+| `/autopurge`    | Auto-purge a channel on a repeating interval           |
 | `/settings`     | Manage bot settings, including prefixes               |
 | `/support`      | Get help from the support team                        |
 | `/customcommand`| Create custom text commands                          |

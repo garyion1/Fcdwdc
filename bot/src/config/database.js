@@ -27,6 +27,7 @@ function defaultConfig() {
     warnings: {},
     giveaways: {},
     locks: {},
+    autopurge: {},
     tickets: {
       types: {},
       settings: {

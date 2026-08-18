@@ -152,4 +152,63 @@ module.exports = [
       return message.channel.send(`My prefixes here are: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`);
     },
   },
+  {
+    name: 'channelinfo',
+    category: CATEGORY,
+    description: 'Show information about this channel.',
+    async execute(message) {
+      const channel = message.channel;
+      const embed = baseEmbed()
+        .setTitle(`#${channel.name}`)
+        .addFields(
+          { name: 'ID', value: channel.id, inline: true },
+          { name: 'Category', value: channel.parent ? channel.parent.name : 'None', inline: true },
+          { name: 'NSFW', value: channel.nsfw ? 'Yes' : 'No', inline: true },
+          { name: 'Slowmode', value: `${channel.rateLimitPerUser ?? 0}s`, inline: true },
+          { name: 'Created', value: `<t:${Math.floor(channel.createdTimestamp / 1000)}:D>`, inline: true },
+        );
+      return message.channel.send({ embeds: [embed] });
+    },
+  },
+  {
+    name: 'membercount',
+    category: CATEGORY,
+    description: "Show this server's member count.",
+    async execute(message) {
+      return message.channel.send(`👥 ${message.guild.name} has **${message.guild.memberCount}** members.`);
+    },
+  },
+  {
+    name: 'id',
+    category: CATEGORY,
+    description: 'Get the raw ID of a mentioned user, role, or channel. Usage: id <@user|@role|#channel>',
+    async execute(message) {
+      const target = message.mentions.users.first() ?? message.mentions.roles.first() ?? message.mentions.channels.first();
+      if (!target) return message.reply('Usage: `id <@user|@role|#channel>`');
+      return message.channel.send(`ID: \`${target.id}\``);
+    },
+  },
+  {
+    name: 'firstmessage',
+    aliases: ['firstmsg'],
+    category: CATEGORY,
+    description: 'Get a link to the first message in this channel.',
+    async execute(message) {
+      const messages = await message.channel.messages.fetch({ after: '0', limit: 1 }).catch(() => null);
+      const first = messages?.first();
+      if (!first) return message.reply('Could not find the first message in this channel.');
+      return message.channel.send(`First message: ${first.url}`);
+    },
+  },
+  {
+    name: 'emojis',
+    category: CATEGORY,
+    description: "List this server's custom emojis.",
+    async execute(message) {
+      const emojis = message.guild.emojis.cache;
+      if (emojis.size === 0) return message.channel.send('This server has no custom emojis.');
+      const list = emojis.map((e) => `${e}`).join(' ');
+      return message.channel.send({ embeds: [baseEmbed().setTitle(`Emojis (${emojis.size})`).setDescription(list.slice(0, 4000))] });
+    },
+  },
 ];
