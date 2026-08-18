@@ -1,0 +1,18 @@
+{
+  "name": "boat-bot",
+  "version": "1.0.0",
+  "description": "Boat Bot - a powerful Discord bot for easy server management",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
