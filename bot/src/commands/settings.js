@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
-const { getConfig, saveConfig } = require('../config/database');
+const { getConfig, saveConfig, defaultConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
 module.exports = {
@@ -55,15 +55,23 @@ module.exports = {
     .addSubcommand((sub) =>
       sub
         .setName('prefix')
-        .setDescription('Add, remove, or list the prefixes used for text commands.')
+        .setDescription('Fully customize the prefixes used for text commands. Any prefix works for every command.')
         .addStringOption((o) =>
           o
             .setName('action')
             .setDescription('What to do')
             .setRequired(true)
-            .addChoices({ name: 'Add', value: 'add' }, { name: 'Remove', value: 'remove' }, { name: 'List', value: 'list' }),
+            .addChoices(
+              { name: 'Add', value: 'add' },
+              { name: 'Remove', value: 'remove' },
+              { name: 'List', value: 'list' },
+              { name: 'Set (replace all at once)', value: 'set' },
+              { name: 'Reset to defaults', value: 'reset' },
+            ),
         )
-        .addStringOption((o) => o.setName('value').setDescription('The prefix, e.g. ! or , (max 5 characters, no spaces)')),
+        .addStringOption((o) =>
+          o.setName('value').setDescription('The prefix (add/remove), or a space-separated list of prefixes (set), e.g. "! . , >>"'),
+        ),
     ),
 
   async execute(interaction) {
@@ -122,6 +130,30 @@ module.exports = {
 
       if (action === 'list') {
         return interaction.reply({ content: `Current prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`, flags: MessageFlags.Ephemeral });
+      }
+
+      if (action === 'reset') {
+        config.prefixes = defaultConfig().prefixes;
+        saveConfig(interaction.guildId);
+        return interaction.reply({
+          embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes reset to defaults: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)],
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      if (action === 'set') {
+        if (!value) return interaction.reply({ content: 'Provide a space-separated list of prefixes, e.g. `! . , >>`.', flags: MessageFlags.Ephemeral });
+        const proposed = [...new Set(value.trim().split(/\s+/))];
+        const invalid = proposed.find((p) => p.length === 0 || p.length > 5);
+        if (invalid !== undefined) {
+          return interaction.reply({ content: `\`${invalid}\` is not a valid prefix (must be 1-5 characters, no spaces).`, flags: MessageFlags.Ephemeral });
+        }
+        config.prefixes = proposed;
+        saveConfig(interaction.guildId);
+        return interaction.reply({
+          embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes replaced with: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)],
+          flags: MessageFlags.Ephemeral,
+        });
       }
 
       if (!value || value.length > 5 || /\s/.test(value)) {
