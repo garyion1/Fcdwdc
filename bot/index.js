@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const loadCommands = require('./src/handlers/commandHandler');
+const loadPrefixCommands = require('./src/handlers/prefixCommandHandler');
 const loadEvents = require('./src/handlers/eventHandler');
 
 if (!process.env.DISCORD_TOKEN) {
@@ -21,6 +22,7 @@ const client = new Client({
 });
 
 loadCommands(client);
+loadPrefixCommands(client);
 loadEvents(client);
 
 client.login(process.env.DISCORD_TOKEN);

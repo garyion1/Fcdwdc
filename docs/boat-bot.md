@@ -19,13 +19,14 @@ A powerful Discord bot built for easy server management — fast, reliable, and 
 - Fast response times
 - Easy setup
 - Slash commands
-- Custom commands
-- Moderation
+- Text (prefix) commands — responds to several prefixes at once (e.g. `!`, `.`, `,`, `?`, `$`), fully configurable per server
+- Custom commands (unlimited, admin-defined)
+- Moderation, including channel lock/unlock that also blocks and locks threads, not just messages
 - Automod
 - Welcome messages
 - Leave messages
 - Logging system
-- Ticket system
+- Fully customizable multi-type ticket system — multiple categories, per-type support roles and welcome messages, claim button, transcripts, and more
 - Role management
 - Giveaways
 - Custom embeds
@@ -34,16 +35,25 @@ A powerful Discord bot built for easy server management — fast, reliable, and 
 
 ## Commands
 
-| Command       | Description                          |
-|---------------|---------------------------------------|
-| `/help`       | List available commands and get help  |
-| `/setup`      | Run the guided initial setup          |
-| `/config`     | View and edit server configuration    |
-| `/stats`      | View server statistics                |
-| `/tickets`    | Manage the ticket system              |
-| `/moderation` | Access moderation tools               |
-| `/settings`   | Manage bot settings                   |
-| `/support`    | Get help from the support team        |
+| Command         | Description                                        |
+|------------------|-----------------------------------------------------|
+| `/help`         | List available commands and get help                |
+| `/setup`        | Run the guided initial setup                         |
+| `/config`       | View and edit server configuration                   |
+| `/stats`        | View server statistics                               |
+| `/tickets`      | Manage the ticket you are currently in               |
+| `/ticketsetup`  | Configure ticket types, panels, and behavior          |
+| `/moderation`   | Access moderation tools                              |
+| `/lock`         | Lock a channel — blocks messages and threads          |
+| `/unlock`       | Unlock a channel                                      |
+| `/settings`     | Manage bot settings, including prefixes               |
+| `/support`      | Get help from the support team                        |
+| `/customcommand`| Create custom text commands                          |
+| `/embed`        | Build and send a custom embed                        |
+| `/reactionrole` | Set up reaction roles                                |
+| `/giveaway`     | Start and manage giveaways                           |
+
+Text commands work alongside slash commands — for example `,lock` locks a channel the same way `/lock` does. Run `!commands` (or any configured prefix + `commands`) in a server to see the full list, grouped by category.
 
 ## Requirements
 

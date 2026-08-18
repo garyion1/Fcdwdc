@@ -6,15 +6,13 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function defaultConfig() {
   return {
-    prefix: '!',
+    prefixes: ['!', '.', '?', ',', '$'],
     welcomeChannel: null,
     welcomeMessage: 'Welcome {user} to {server}! You are member #{memberCount}.',
     leaveChannel: null,
     leaveMessage: '{user} has left {server}.',
     logChannel: null,
     modLogChannel: null,
-    ticketCategory: null,
-    ticketCounter: 0,
     autorole: null,
     automod: {
       enabled: false,
@@ -28,6 +26,21 @@ function defaultConfig() {
     reactionRoles: {},
     warnings: {},
     giveaways: {},
+    locks: {},
+    tickets: {
+      types: {},
+      settings: {
+        namingFormat: 'ticket-{number}',
+        claimEnabled: true,
+        pingSupportRole: true,
+        maxOpenPerUser: 1,
+        logChannel: null,
+        transcriptOnClose: true,
+        closeRequireReason: false,
+      },
+      counter: 0,
+      openTickets: {},
+    },
   };
 }
 
@@ -46,7 +59,16 @@ function getConfig(guildId) {
   if (fs.existsSync(fp)) {
     try {
       const saved = JSON.parse(fs.readFileSync(fp, 'utf8'));
-      config = { ...config, ...saved, automod: { ...config.automod, ...saved.automod } };
+      config = {
+        ...config,
+        ...saved,
+        automod: { ...config.automod, ...saved.automod },
+        tickets: {
+          ...config.tickets,
+          ...saved.tickets,
+          settings: { ...config.tickets.settings, ...saved.tickets?.settings },
+        },
+      };
     } catch (error) {
       console.error(`Failed to read config for guild ${guildId}, using defaults:`, error);
     }

@@ -17,9 +17,14 @@ function isSpam(userId) {
   return timestamps.length > SPAM_MESSAGE_LIMIT;
 }
 
+function matchPrefix(content, prefixes) {
+  const sorted = [...prefixes].sort((a, b) => b.length - a.length);
+  return sorted.find((p) => content.startsWith(p));
+}
+
 module.exports = {
   name: 'messageCreate',
-  async execute(message) {
+  async execute(message, client) {
     if (message.author.bot || !message.guild) return;
 
     const config = getConfig(message.guild.id);
@@ -45,9 +50,27 @@ module.exports = {
       }
     }
 
-    if (!message.content.startsWith(config.prefix)) return;
-    const commandName = message.content.slice(config.prefix.length).trim().toLowerCase().split(/\s+/)[0];
+    const prefix = matchPrefix(message.content, config.prefixes);
+    if (!prefix) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/\s+/);
+    const commandName = args.shift()?.toLowerCase();
     if (!commandName) return;
+
+    const command = client.prefixCommands.get(commandName);
+    if (command) {
+      if (command.permissions && !message.member?.permissions.has(command.permissions)) {
+        return message.reply("You don't have permission to use that command.").catch(() => {});
+      }
+      try {
+        await command.execute(message, args, config, client);
+      } catch (error) {
+        console.error(`Error executing prefix command ${commandName}:`, error);
+        await message.reply('Something went wrong while running that command.').catch(() => {});
+      }
+      return;
+    }
+
     const response = config.customCommands[commandName];
     if (response) await message.channel.send(response).catch(() => {});
   },

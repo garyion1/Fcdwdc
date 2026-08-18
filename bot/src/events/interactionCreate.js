@@ -1,6 +1,6 @@
-const { ChannelType, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getConfig, saveConfig } = require('../config/database');
-const { baseEmbed, COLORS } = require('../utils/embeds');
+const { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { getConfig } = require('../config/database');
+const { openTicket, claimTicket, closeTicket } = require('../utils/tickets');
 
 module.exports = {
   name: 'interactionCreate',
@@ -23,64 +23,38 @@ module.exports = {
     }
 
     if (interaction.isButton()) {
-      if (interaction.customId === 'boatbot_open_ticket') {
-        await handleOpenTicket(interaction);
-      } else if (interaction.customId === 'boatbot_close_ticket') {
-        await handleCloseTicket(interaction);
+      if (interaction.customId.startsWith('boatbot_open_ticket:')) {
+        const typeId = interaction.customId.split(':')[1];
+        return openTicket(interaction, typeId);
       }
+      if (interaction.customId === 'boatbot_claim_ticket') {
+        return claimTicket(interaction);
+      }
+      if (interaction.customId === 'boatbot_close_ticket') {
+        const config = getConfig(interaction.guild.id);
+        if (config.tickets.settings.closeRequireReason) {
+          const modal = new ModalBuilder()
+            .setCustomId('boatbot_close_reason_modal')
+            .setTitle('Close Ticket')
+            .addComponents(
+              new ActionRowBuilder().addComponents(
+                new TextInputBuilder().setCustomId('reason').setLabel('Reason for closing').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(200),
+              ),
+            );
+          return interaction.showModal(modal);
+        }
+        return closeTicket(interaction, null);
+      }
+      return;
+    }
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'boatbot_open_ticket_select') {
+      return openTicket(interaction, interaction.values[0]);
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === 'boatbot_close_reason_modal') {
+      const reason = interaction.fields.getTextInputValue('reason');
+      return closeTicket(interaction, reason);
     }
   },
 };
-
-async function handleOpenTicket(interaction) {
-  const guild = interaction.guild;
-  const config = getConfig(guild.id);
-
-  if (!config.ticketCategory) {
-    return interaction.reply({ content: 'The ticket system is not configured yet.', flags: MessageFlags.Ephemeral });
-  }
-
-  const existing = guild.channels.cache.find((c) => c.parentId === config.ticketCategory && c.topic === interaction.user.id);
-  if (existing) {
-    return interaction.reply({ content: `You already have an open ticket: ${existing}`, flags: MessageFlags.Ephemeral });
-  }
-
-  config.ticketCounter = (config.ticketCounter ?? 0) + 1;
-  saveConfig(guild.id);
-
-  const channel = await guild.channels.create({
-    name: `ticket-${config.ticketCounter}`,
-    type: ChannelType.GuildText,
-    parent: config.ticketCategory,
-    topic: interaction.user.id,
-    permissionOverwrites: [
-      { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-      { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] },
-    ],
-  });
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('boatbot_close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-  );
-
-  await channel.send({
-    embeds: [
-      baseEmbed()
-        .setTitle(`Ticket #${config.ticketCounter}`)
-        .setDescription(`Hi ${interaction.user}, support will be with you shortly.\nDescribe your issue below.`),
-    ],
-    components: [row],
-  });
-
-  await interaction.reply({ content: `Ticket created: ${channel}`, flags: MessageFlags.Ephemeral });
-}
-
-async function handleCloseTicket(interaction) {
-  const channel = interaction.channel;
-  if (!channel.name.startsWith('ticket-')) {
-    return interaction.reply({ content: 'This is not a ticket channel.', flags: MessageFlags.Ephemeral });
-  }
-  await interaction.reply({ embeds: [baseEmbed(COLORS.warning).setDescription('This ticket will be closed in 5 seconds...')] });
-  setTimeout(() => channel.delete().catch(() => {}), 5000);
-}

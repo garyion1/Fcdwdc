@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
@@ -51,6 +51,19 @@ module.exports = {
         .setName('autorole')
         .setDescription('Set the role given automatically to new members.')
         .addRoleOption((o) => o.setName('role').setDescription('Role to assign, or omit to disable')),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('prefix')
+        .setDescription('Add, remove, or list the prefixes used for text commands.')
+        .addStringOption((o) =>
+          o
+            .setName('action')
+            .setDescription('What to do')
+            .setRequired(true)
+            .addChoices({ name: 'Add', value: 'add' }, { name: 'Remove', value: 'remove' }, { name: 'List', value: 'list' }),
+        )
+        .addStringOption((o) => o.setName('value').setDescription('The prefix, e.g. ! or , (max 5 characters, no spaces)')),
     ),
 
   async execute(interaction) {
@@ -100,6 +113,36 @@ module.exports = {
       saveConfig(interaction.guildId);
       return interaction.reply({
         embeds: [baseEmbed(COLORS.success).setDescription(role ? `New members will automatically receive ${role}.` : 'Autorole disabled.')],
+      });
+    }
+
+    if (sub === 'prefix') {
+      const action = interaction.options.getString('action', true);
+      const value = interaction.options.getString('value');
+
+      if (action === 'list') {
+        return interaction.reply({ content: `Current prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`, flags: MessageFlags.Ephemeral });
+      }
+
+      if (!value || value.length > 5 || /\s/.test(value)) {
+        return interaction.reply({ content: 'Provide a short prefix with no spaces (max 5 characters).', flags: MessageFlags.Ephemeral });
+      }
+
+      if (action === 'add') {
+        if (config.prefixes.includes(value)) {
+          return interaction.reply({ content: `\`${value}\` is already a prefix.`, flags: MessageFlags.Ephemeral });
+        }
+        config.prefixes.push(value);
+      } else {
+        if (config.prefixes.length <= 1) {
+          return interaction.reply({ content: 'You must keep at least one prefix.', flags: MessageFlags.Ephemeral });
+        }
+        config.prefixes = config.prefixes.filter((p) => p !== value);
+      }
+      saveConfig(interaction.guildId);
+      return interaction.reply({
+        embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes updated: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)],
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

@@ -1,4 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { getConfig } = require('../config/database');
 const { baseEmbed } = require('../utils/embeds');
 
 module.exports = {
@@ -7,17 +8,25 @@ module.exports = {
     .setDescription('List Boat Bot commands and get help.'),
 
   async execute(interaction) {
+    const config = getConfig(interaction.guildId);
+
     const embed = baseEmbed()
       .setTitle('Boat Bot — Commands')
-      .setDescription('A powerful Discord bot built for easy server management.')
+      .setDescription(
+        `A powerful Discord bot built for easy server management.\n` +
+          `Text commands also work with any of these prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')} — try \`${config.prefixes[0]}commands\` to see all of them.`,
+      )
       .addFields(
         { name: '/help', value: 'List available commands and get help.' },
         { name: '/setup', value: 'Run the guided initial setup.' },
         { name: '/config', value: 'View and edit server configuration.' },
         { name: '/stats', value: 'View server statistics.' },
-        { name: '/tickets', value: 'Manage the ticket system.' },
+        { name: '/tickets', value: 'Manage the ticket you are currently in.' },
+        { name: '/ticketsetup', value: 'Configure ticket types, panels, and behavior.' },
         { name: '/moderation', value: 'Access moderation tools.' },
-        { name: '/settings', value: 'Manage bot settings.' },
+        { name: '/lock', value: 'Lock a channel (blocks messages and threads).' },
+        { name: '/unlock', value: 'Unlock a channel.' },
+        { name: '/settings', value: 'Manage bot settings, including prefixes.' },
         { name: '/support', value: 'Get help from the support team.' },
         { name: '/customcommand', value: 'Create custom text commands.' },
         { name: '/embed', value: 'Build and send a custom embed.' },

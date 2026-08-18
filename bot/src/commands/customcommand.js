@@ -29,10 +29,13 @@ module.exports = {
     if (sub === 'add') {
       const name = interaction.options.getString('name', true).toLowerCase().trim();
       const response = interaction.options.getString('response', true);
+      if (interaction.client.prefixCommands.has(name)) {
+        return interaction.reply({ content: `\`${name}\` is already a built-in command name. Pick a different name.`, flags: MessageFlags.Ephemeral });
+      }
       config.customCommands[name] = response;
       saveConfig(interaction.guildId);
       return interaction.reply({
-        embeds: [baseEmbed(COLORS.success).setDescription(`Custom command \`${config.prefix}${name}\` created.`)],
+        embeds: [baseEmbed(COLORS.success).setDescription(`Custom command created. Trigger it with any prefix, e.g. \`${config.prefixes[0]}${name}\`.`)],
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -53,7 +56,7 @@ module.exports = {
         return interaction.reply({ content: 'No custom commands have been created yet.', flags: MessageFlags.Ephemeral });
       }
       return interaction.reply({
-        embeds: [baseEmbed().setTitle('Custom Commands').setDescription(names.map((n) => `\`${config.prefix}${n}\``).join(', '))],
+        embeds: [baseEmbed().setTitle('Custom Commands').setDescription(names.map((n) => `\`${n}\``).join(', '))],
         flags: MessageFlags.Ephemeral,
       });
     }
