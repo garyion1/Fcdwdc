@@ -46,6 +46,8 @@ A powerful Discord bot built for easy server management — fast, reliable, and 
 | `/moderation`   | Access moderation tools                              |
 | `/lock`         | Lock a channel — blocks messages and threads          |
 | `/unlock`       | Unlock a channel                                      |
+| `/jail`         | Jail a member — they can only see the jail channel     |
+| `/unjail`       | Release a jailed member                               |
 | `/autopurge`    | Auto-purge a channel on a repeating interval           |
 | `/antiraid`     | Configure anti-raid protection                        |
 | `/settings`     | Manage bot settings, including prefixes               |

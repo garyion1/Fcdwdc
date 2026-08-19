@@ -5,6 +5,7 @@ const { logAction } = require('../utils/logger');
 const { lockChannel, unlockChannel } = require('../utils/channelLock');
 const { schedulePurge, stopPurge } = require('../utils/autopurge');
 const { isRaidActive, endRaidMode } = require('../utils/antiraid');
+const { jailMember, unjailMember } = require('../utils/jail');
 const { resolveUser } = require('../utils/args');
 
 const CATEGORY = 'Moderation';
@@ -316,6 +317,51 @@ module.exports = [
       }
 
       return message.reply('Usage: `antiraid <on|off|end|status>` — use `/antiraid settings` for detailed tuning.');
+    },
+  },
+  {
+    name: 'jail',
+    category: CATEGORY,
+    description: 'Jail a member so they can only see the jail channel. Usage: jail @user [reason]',
+    permissions: [PermissionFlagsBits.ModerateMembers],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      if (!user) return message.reply('Usage: `jail @user [reason]`');
+      const reason = args.slice(1).join(' ') || 'No reason provided';
+      const member = await message.guild.members.fetch(user.id).catch(() => null);
+      if (!member) return message.reply('That user is not in this server.');
+      if (!member.manageable) return message.reply('I cannot jail that member (check role hierarchy).');
+
+      const notice = await message.channel.send('🔒 Setting up jail...');
+      const result = await jailMember(message.guild, member, message.author, reason);
+      if (result.alreadyJailed) return notice.edit(`**${user.tag}** is already jailed.`);
+      if (result.hierarchyError) return notice.edit('I cannot jail that member (check role hierarchy).');
+
+      return notice.edit({
+        content: '',
+        embeds: [
+          baseEmbed(COLORS.danger).setDescription(
+            `🔒 **${user.tag}** has been jailed.\nReason: ${reason}\nThey can now only see ${result.channel}.`,
+          ),
+        ],
+      });
+    },
+  },
+  {
+    name: 'unjail',
+    category: CATEGORY,
+    description: 'Release a jailed member and restore their previous roles. Usage: unjail @user',
+    permissions: [PermissionFlagsBits.ModerateMembers],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      if (!user) return message.reply('Usage: `unjail @user`');
+      const member = await message.guild.members.fetch(user.id).catch(() => null);
+      if (!member) return message.reply('That user is not in this server.');
+
+      const result = await unjailMember(message.guild, member, message.author);
+      if (result.notJailed) return message.reply(`**${user.tag}** is not jailed.`);
+
+      return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`🔓 **${user.tag}** has been released from jail.`)] });
     },
   },
   {

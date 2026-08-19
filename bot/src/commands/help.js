@@ -28,6 +28,8 @@ module.exports = {
         { name: '/unlock', value: 'Unlock a channel.' },
         { name: '/autopurge', value: 'Auto-purge a channel on a repeating interval.' },
         { name: '/antiraid', value: 'Configure anti-raid protection.' },
+        { name: '/jail', value: 'Jail a member — they can only see the jail channel.' },
+        { name: '/unjail', value: 'Release a jailed member.' },
         { name: '/premium', value: "View this server's premium status." },
         { name: '/redeem', value: 'Redeem a license key to activate premium.' },
         { name: '/settings', value: 'Manage bot settings, including prefixes.' },

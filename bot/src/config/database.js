@@ -24,6 +24,11 @@ function defaultConfig() {
     giveaways: {},
     locks: {},
     autopurge: {},
+    jail: {
+      roleId: null,
+      channelId: null,
+      jailed: {},
+    },
     premium: {
       active: false,
       tier: null,

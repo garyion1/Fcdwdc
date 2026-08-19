@@ -90,7 +90,8 @@ Core slash commands (see [`docs/boat-bot.md`](../docs/boat-bot.md#commands)):
 
 Additional slash commands:
 `/ticketsetup` (configure ticket types/panels/behavior), `/lock` / `/unlock` (channel
-lock that also blocks and locks threads), `/autopurge` (schedule a channel to
+lock that also blocks and locks threads), `/jail` / `/unjail` (isolate a member to a
+single jail channel — see below), `/autopurge` (schedule a channel to
 auto-clean on a repeating interval), `/antiraid` (burst-join detection with optional
 auto-lockdown, plus an always-on minimum account age gate), `/license` / `/redeem` /
 `/premium` / `/adminserver` (built-in licensing — see below), `/customcommand`,
@@ -104,7 +105,7 @@ prefixes (default: `!` `.` `?` `,` `$` — manage them with `/settings prefix`).
 
 - **Moderation** — `lock`, `unlock`, `kick`, `ban`, `unban`, `timeout`/`mute`,
   `untimeout`/`unmute`, `warn`, `warnings`, `warnclear`, `clear`/`purge`, `purgeuser`,
-  `purgebots`, `autopurge`, `antiraid`, `slowmode`, `nick`
+  `purgebots`, `autopurge`, `antiraid`, `jail`, `unjail`, `slowmode`, `nick`
 - **Utility** — `ping`, `avatar`, `userinfo`/`whois`, `serverinfo`/`guildinfo`,
   `roleinfo`, `banner`, `invite`, `botinfo`/`about`, `uptime`, `prefix`,
   `channelinfo`, `membercount`, `id`, `firstmessage`/`firstmsg`, `emojis`
@@ -125,6 +126,19 @@ role, emoji, and welcome message), a button or dropdown panel depending on how m
 types exist, a claim button, per-user open-ticket limits, transcript logging to a
 channel, and optionally requiring a reason before a ticket can be closed. `/tickets`
 manages the ticket you're currently sitting in (close, add a user, remove a user).
+
+### Jail
+
+`/jail @user [reason]` (or `,jail @user [reason]`) isolates a member so the only
+channel they can see is a dedicated jail channel — everything else in the server
+disappears for them. On first use per server it auto-creates a `Jailed` role and a
+`#jail` text channel (remembered afterward, so this only happens once), denies that
+role `View Channel` on every existing channel, and swaps the member's roles for just
+`Jailed` (their previous roles are recorded so `/unjail` / `,unjail` can restore them
+exactly). Any channel created *after* that point is automatically locked out for the
+`Jailed` role too, so the jail doesn't leak as the server grows. Requires **Moderate
+Members**; fails cleanly with a role-hierarchy message if the bot can't manage the
+target.
 
 ### Licensing (self-managed, no payment backend)
 
