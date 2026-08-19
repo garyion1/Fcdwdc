@@ -1,4 +1,4 @@
-const { PermissionFlagsBits } = require('discord.js');
+const { PermissionFlagsBits, ChannelType } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { logAction } = require('../utils/logger');
@@ -8,6 +8,7 @@ const { isRaidActive, endRaidMode } = require('../utils/antiraid');
 const { jailMember, unjailMember } = require('../utils/jail');
 const { containsBadWord } = require('../utils/profanity');
 const { resolveUser } = require('../utils/args');
+const { slugify } = require('../utils/tickets');
 
 const CATEGORY = 'Moderation';
 
@@ -415,6 +416,92 @@ module.exports = [
         return message.reply("I cannot change that member's nickname (check role hierarchy).");
       }
       return message.channel.send(`Nickname updated for ${user.tag}.`);
+    },
+  },
+  {
+    name: 'ticket',
+    category: CATEGORY,
+    description: 'Set one of 5 ticket type slots. Usage: ticket option <1-5> <name>',
+    permissions: [PermissionFlagsBits.ManageGuild],
+    async execute(message, args) {
+      if (args[0]?.toLowerCase() !== 'option') return message.reply('Usage: `ticket option <1-5> <name>`');
+      const slot = parseInt(args[1], 10);
+      const name = args.slice(2).join(' ');
+      if (!Number.isInteger(slot) || slot < 1 || slot > 5 || !name) {
+        return message.reply('Usage: `ticket option <1-5> <name>`, e.g. `ticket option 1 General Support`');
+      }
+
+      const config = getConfig(message.guild.id);
+      const existing = Object.values(config.tickets.types).find((t) => t.slot === slot);
+
+      if (existing) {
+        existing.label = name;
+        saveConfig(message.guild.id);
+        return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`Ticket option ${slot} renamed to **${name}**.`)] });
+      }
+
+      if (Object.keys(config.tickets.types).length >= 25) {
+        return message.reply('You can have at most 25 ticket types (a Discord select menu limit).');
+      }
+
+      let id = slugify(name);
+      let suffix = 2;
+      while (config.tickets.types[id]) {
+        id = `${slugify(name)}-${suffix}`;
+        suffix += 1;
+      }
+
+      const notice = await message.channel.send(`🎫 Setting up ticket option ${slot}...`);
+      const category = await message.guild.channels.create({ name, type: ChannelType.GuildCategory });
+      config.tickets.types[id] = {
+        id,
+        label: name,
+        description: null,
+        category: category.id,
+        supportRoleId: null,
+        emoji: null,
+        welcomeMessage: null,
+        slot,
+      };
+      saveConfig(message.guild.id);
+
+      return notice.edit({
+        content: '',
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            `Ticket option ${slot} set to **${name}**, with its own auto-created category. Send a panel with \`/ticketsetup panel\`.`,
+          ),
+        ],
+      });
+    },
+  },
+  {
+    name: 'remove',
+    category: CATEGORY,
+    description: 'Remove one of the 5 ticket type slots. Usage: remove ticket option <1-5>',
+    permissions: [PermissionFlagsBits.ManageGuild],
+    async execute(message, args) {
+      if (args[0]?.toLowerCase() !== 'ticket' || args[1]?.toLowerCase() !== 'option') {
+        return message.reply('Usage: `remove ticket option <1-5>`');
+      }
+      const slot = parseInt(args[2], 10);
+      if (!Number.isInteger(slot) || slot < 1 || slot > 5) {
+        return message.reply('Usage: `remove ticket option <1-5>`');
+      }
+
+      const config = getConfig(message.guild.id);
+      const entry = Object.values(config.tickets.types).find((t) => t.slot === slot);
+      if (!entry) return message.reply(`No ticket option ${slot} exists.`);
+
+      delete config.tickets.types[entry.id];
+      saveConfig(message.guild.id);
+      return message.channel.send({
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            `Ticket option ${slot} (**${entry.label}**) removed. Its category channel was left in place — delete it manually if you don't need it.`,
+          ),
+        ],
+      });
     },
   },
 ];
