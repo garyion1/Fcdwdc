@@ -73,6 +73,27 @@ module.exports = [
     },
   },
   {
+    name: 'hb',
+    category: CATEGORY,
+    description: "Hard ban a member — bans and deletes their last 7 days of messages. Usage: hb @user [reason]",
+    permissions: [PermissionFlagsBits.BanMembers],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      if (!user) return message.reply('Usage: `hb @user [reason]`');
+      const reason = args.slice(1).join(' ') || 'No reason provided';
+      const member = await message.guild.members.fetch(user.id).catch(() => null);
+      if (member && !member.bannable) return message.reply('I cannot ban that member (check role hierarchy).');
+      await user
+        .send({ embeds: [baseEmbed(COLORS.danger).setDescription(`🔨 You have been banned from **${message.guild.name}**.\nReason: ${reason}`)] })
+        .catch(() => {});
+      await message.guild.members.ban(user.id, { reason, deleteMessageSeconds: 604800 });
+      await logAction(message.guild, `🔨 **${user.tag}** was hard-banned (messages purged) by ${message.author.tag}\nReason: ${reason}`);
+      return message.channel.send({
+        embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been hard-banned (last 7 days of messages deleted).\nReason: ${reason}`)],
+      });
+    },
+  },
+  {
     name: 'unban',
     category: CATEGORY,
     description: 'Unban a user by ID. Usage: unban <userId> [reason]',
@@ -421,14 +442,44 @@ module.exports = [
   {
     name: 'ticket',
     category: CATEGORY,
-    description: 'Set one of 5 ticket type slots. Usage: ticket option <1-5> <name>',
+    description: 'Clear all 5 ticket option slots at once. Usage: ticket option',
     permissions: [PermissionFlagsBits.ManageGuild],
     async execute(message, args) {
-      if (args[0]?.toLowerCase() !== 'option') return message.reply('Usage: `ticket option <1-5> <name>`');
-      const slot = parseInt(args[1], 10);
-      const name = args.slice(2).join(' ');
+      if (args[0]?.toLowerCase() !== 'option') {
+        return message.reply(
+          'Usage: `ticket option` — clears all 5 ticket option slots. Use `add ticket option <1-5> <name>` to set one, `remove ticket option <1-5>` to clear just one.',
+        );
+      }
+
+      const config = getConfig(message.guild.id);
+      const slots = Object.values(config.tickets.types).filter((t) => t.slot);
+      if (slots.length === 0) return message.reply('No ticket options are set.');
+
+      for (const entry of slots) delete config.tickets.types[entry.id];
+      saveConfig(message.guild.id);
+
+      return message.channel.send({
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            `Cleared all ${slots.length} ticket option(s). Their category channels were left in place — delete them manually if you don't need them. Use \`add ticket option <1-5> <name>\` to set new ones.`,
+          ),
+        ],
+      });
+    },
+  },
+  {
+    name: 'add',
+    category: CATEGORY,
+    description: 'Set one of 5 ticket type slots. Usage: add ticket option <1-5> <name>',
+    permissions: [PermissionFlagsBits.ManageGuild],
+    async execute(message, args) {
+      if (args[0]?.toLowerCase() !== 'ticket' || args[1]?.toLowerCase() !== 'option') {
+        return message.reply('Usage: `add ticket option <1-5> <name>`');
+      }
+      const slot = parseInt(args[2], 10);
+      const name = args.slice(3).join(' ');
       if (!Number.isInteger(slot) || slot < 1 || slot > 5 || !name) {
-        return message.reply('Usage: `ticket option <1-5> <name>`, e.g. `ticket option 1 General Support`');
+        return message.reply('Usage: `add ticket option <1-5> <name>`, e.g. `add ticket option 1 General Support`');
       }
 
       const config = getConfig(message.guild.id);
