@@ -36,7 +36,11 @@ module.exports = {
         .setDescription('Send the ticket panel to a channel.')
         .addChannelOption((o) => o.setName('channel').setDescription('Channel to send the panel to').setRequired(true).addChannelTypes(ChannelType.GuildText))
         .addStringOption((o) => o.setName('title').setDescription('Panel embed title'))
-        .addStringOption((o) => o.setName('description').setDescription('Panel embed description'))
+        .addStringOption((o) => o.setName('description_1').setDescription('Panel description, line 1 (all 5 optional, use as many as you need)'))
+        .addStringOption((o) => o.setName('description_2').setDescription('Panel description, line 2'))
+        .addStringOption((o) => o.setName('description_3').setDescription('Panel description, line 3'))
+        .addStringOption((o) => o.setName('description_4').setDescription('Panel description, line 4'))
+        .addStringOption((o) => o.setName('description_5').setDescription('Panel description, line 5'))
         .addStringOption((o) => o.setName('color').setDescription('Hex color, e.g. #5865F2')),
     )
     .addSubcommand((sub) =>
@@ -132,7 +136,8 @@ module.exports = {
       }
       const channel = interaction.options.getChannel('channel', true);
       const title = interaction.options.getString('title') ?? 'Support Tickets';
-      const description = interaction.options.getString('description') ?? 'Select a category below to open a ticket.';
+      const descriptionLines = [1, 2, 3, 4, 5].map((n) => interaction.options.getString(`description_${n}`)).filter(Boolean);
+      const description = descriptionLines.length > 0 ? descriptionLines.join('\n') : 'Select a category below to open a ticket.';
       const color = interaction.options.getString('color');
 
       const embed = baseEmbed().setTitle(title).setDescription(description);
