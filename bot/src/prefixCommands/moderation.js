@@ -63,6 +63,9 @@ module.exports = [
       const reason = args.slice(1).join(' ') || 'No reason provided';
       const member = await message.guild.members.fetch(user.id).catch(() => null);
       if (member && !member.bannable) return message.reply('I cannot ban that member (check role hierarchy).');
+      await user
+        .send({ embeds: [baseEmbed(COLORS.danger).setDescription(`🔨 You have been banned from **${message.guild.name}**.\nReason: ${reason}`)] })
+        .catch(() => {});
       await message.guild.members.ban(user.id, { reason });
       await logAction(message.guild, `🔨 **${user.tag}** was banned by ${message.author.tag}\nReason: ${reason}`);
       return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been banned.\nReason: ${reason}`)] });
@@ -417,20 +420,11 @@ module.exports = [
   {
     name: 'dm',
     category: CATEGORY,
-    description: 'DM every member of this server with a message. Usage: dm <message>. Once per day.',
+    description: 'DM every member of this server with a message. Usage: dm <message>',
     permissions: [PermissionFlagsBits.Administrator],
-    async execute(message, args, config) {
+    async execute(message, args) {
       const text = args.join(' ');
       if (!text) return message.reply('Usage: `dm <message>`');
-
-      const cooldownMs = 24 * 60 * 60 * 1000;
-      if (config.lastMassDmAt && Date.now() - config.lastMassDmAt < cooldownMs) {
-        const nextAvailable = Math.floor((config.lastMassDmAt + cooldownMs) / 1000);
-        return message.reply(`This command is on a once-per-day cooldown. You can use it again <t:${nextAvailable}:R>.`);
-      }
-
-      config.lastMassDmAt = Date.now();
-      saveConfig(message.guild.id);
 
       const notice = await message.channel.send('📨 Sending a DM to every member... this can take a while on larger servers.');
       const members = await message.guild.members.fetch();

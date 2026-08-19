@@ -12,6 +12,7 @@ function requireAdminGuild(interaction) {
 }
 
 module.exports = {
+  requireAdminGuild,
   data: new SlashCommandBuilder()
     .setName('license')
     .setDescription('Generate and manage premium license keys (admin server only).')

@@ -61,6 +61,9 @@ module.exports = {
       if (member && !member.bannable) {
         return interaction.reply({ content: 'I cannot ban that member (check role hierarchy).' });
       }
+      await user
+        .send({ embeds: [baseEmbed(COLORS.danger).setDescription(`🔨 You have been banned from **${guild.name}**.\nReason: ${reason}`)] })
+        .catch(() => {});
       await guild.members.ban(user.id, { reason });
       await logAction(guild, `🔨 **${user.tag}** was banned by ${interaction.user.tag}\nReason: ${reason}`);
       return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been banned.\nReason: ${reason}`)] });
