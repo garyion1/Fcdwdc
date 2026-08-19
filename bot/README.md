@@ -146,11 +146,23 @@ target.
 post text — plain for `say`, wrapped in an embed for `embed`. Since this lets a mod
 put arbitrary words in the bot's mouth, every one of these four is filtered through
 `src/utils/profanity.js` before sending: if the text matches a blocked word, nothing
-is posted and the invoker gets a rejection instead. The filter checks a small
-built-in baseline of common profanity (deliberately not exhaustive — no slurs are
-hardcoded into the source) plus each server's own extended list, managed with
-`/settings bannedwords add|remove|list`. That same per-server list also feeds the
-existing automod word filter, so adding a word once covers both.
+is posted and the invoker gets a rejection instead. Two tiers:
+
+- A small baseline of common profanity, matched as whole words against the literal
+  text (`fuck`, `shit`, etc.).
+- A short list of slurs and hate speech (the kind of thing that gets a server
+  actioned under Discord's hateful-conduct policy) matched against a normalized,
+  evasion-resistant form of the text — leetspeak substitutions collapsed (`n1gger`
+  → `nigger`), punctuation/spaces used as fake letter-separators stripped
+  (`n.i.g.g.e.r`, `n i g g e r`), and excessive letter-stretching trimmed
+  (`niggerrrr`). This is deliberately *not* a perfect filter — no blocklist is,
+  and a sufficiently deliberate evasion can still slip through — but it catches
+  the common cases. It's tuned to avoid false positives on legitimate words (e.g.
+  "Nigeria" doesn't trigger it), verified with an explicit test suite.
+
+Each server can also extend the blocklist with `/settings bannedwords
+add|remove|list`, which feeds both this filter and the existing automod word
+filter — adding a word once covers both.
 
 ### Licensing (self-managed, no payment backend)
 
