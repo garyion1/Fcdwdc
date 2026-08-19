@@ -1,8 +1,4 @@
-const fs = require('fs');
-const path = require('path');
-
-const DATA_DIR = path.join(__dirname, '..', '..', 'data', 'guilds');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const { db } = require('./db');
 
 function defaultConfig() {
   return {
@@ -62,19 +58,22 @@ function defaultConfig() {
 
 const cache = new Map();
 
-function filePath(guildId) {
-  return path.join(DATA_DIR, `${guildId}.json`);
-}
+const selectConfigStmt = db.prepare('SELECT config FROM guild_config WHERE guild_id = ?');
+const upsertConfigStmt = db.prepare(`
+  INSERT INTO guild_config (guild_id, config, updated_at) VALUES (?, ?, ?)
+  ON CONFLICT(guild_id) DO UPDATE SET config = excluded.config, updated_at = excluded.updated_at
+`);
+const allGuildIdsStmt = db.prepare('SELECT guild_id FROM guild_config');
 
 function getConfig(guildId) {
   if (cache.has(guildId)) return cache.get(guildId);
 
-  const fp = filePath(guildId);
   let config = defaultConfig();
+  const row = selectConfigStmt.get(guildId);
 
-  if (fs.existsSync(fp)) {
+  if (row) {
     try {
-      const saved = JSON.parse(fs.readFileSync(fp, 'utf8'));
+      const saved = JSON.parse(row.config);
       config = {
         ...config,
         ...saved,
@@ -88,7 +87,7 @@ function getConfig(guildId) {
         },
       };
     } catch (error) {
-      console.error(`Failed to read config for guild ${guildId}, using defaults:`, error);
+      console.error(`Failed to parse config for guild ${guildId}, using defaults:`, error);
     }
   }
 
@@ -99,15 +98,11 @@ function getConfig(guildId) {
 function saveConfig(guildId) {
   const config = cache.get(guildId);
   if (!config) return;
-  fs.writeFileSync(filePath(guildId), JSON.stringify(config, null, 2));
+  upsertConfigStmt.run(guildId, JSON.stringify(config), Date.now());
 }
 
 function getAllGuildIds() {
-  if (!fs.existsSync(DATA_DIR)) return [];
-  return fs
-    .readdirSync(DATA_DIR)
-    .filter((file) => file.endsWith('.json'))
-    .map((file) => file.replace('.json', ''));
+  return allGuildIdsStmt.all().map((row) => row.guild_id);
 }
 
 module.exports = { getConfig, saveConfig, defaultConfig, getAllGuildIds };

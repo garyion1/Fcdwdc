@@ -2,8 +2,8 @@
 
 This is the bot implementation described in [`docs/boat-bot.md`](../docs/boat-bot.md).
 
-Built with [discord.js](https://discord.js.org) v14. Per-server settings are stored as JSON
-files, so no external database is required.
+Built with [discord.js](https://discord.js.org) v14. Persistence is a single SQLite file
+(`data/bot.sqlite3`, via `better-sqlite3`) — no external database server to run or connect to.
 
 ## Requirements
 
@@ -52,18 +52,36 @@ bot/
     prefixCommands/        Text (prefix) commands, grouped by category per file
     events/                 One file per Discord.js gateway event
     handlers/               Loads slash commands, prefix commands, and events into the client
-    config/database.js      Per-guild JSON config store (data/guilds/<id>.json)
+    config/
+      db.js                  SQLite connection, schema, one-time legacy JSON migration
+      database.js            Per-guild config store (guild_config table, JSON blob per row)
     utils/
       embeds.js              Shared embed styling
       logger.js              Mod-log channel helper
       args.js                Resolve a @mention or ID to a user
       channelLock.js         Lock/unlock a channel, including active threads
       tickets.js              Ticket open/claim/close, transcripts, panel builders
-      licenses.js             Global license key store (data/global.json)
+      licenses.js             Admin server ID + license keys (meta / licenses tables)
       premium.js              Per-guild premium status check + bot-owner check
-  data/guilds/             Auto-created per-server config files (git-ignored)
-  data/global.json         Admin server ID + all license keys (git-ignored, sensitive)
+  data/bot.sqlite3         Auto-created SQLite database (git-ignored, holds everything)
 ```
+
+### Persistence
+
+Everything lives in one SQLite file, `data/bot.sqlite3`, created automatically on first
+run:
+
+- `guild_config` — one row per server, config stored as a JSON blob (same shape as
+  before, just moved off disk-per-file and into indexed rows)
+- `licenses` — one row per license key, real columns (`tier`, `redeemed`, `guild_id`,
+  `expires_at`, ...) instead of one big JSON object loaded into memory on every lookup
+- `meta` — small key/value table, currently just the admin/control server ID
+
+If you're upgrading from an older version of this bot that used per-guild JSON files
+(`data/guilds/<id>.json`) and a `data/global.json`, nothing to do — on first startup
+those are automatically imported into SQLite and renamed to `.migrated` (not deleted,
+so your old data is still there if anything looks wrong). This only runs once; after
+that the JSON files are ignored.
 
 ## Commands
 
@@ -115,7 +133,7 @@ still collect payment however you like (a payment link, manual invoicing, etc.) 
 then hand the buyer a key.
 
 - **Admin/control server** — the *first server the bot ever joins* is automatically
-  designated the admin server (`guildCreate` event, stored in `data/global.json`, not
+  designated the admin server (`guildCreate` event, stored in the `meta` table, not
   per-guild config — this only happens once). If the wrong server ends up as admin
   (e.g. a test server), the actual bot owner (checked against the Discord application's
   owner/team, not just a server admin) can move it with `/adminserver set` in the
