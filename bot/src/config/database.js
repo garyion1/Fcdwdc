@@ -11,6 +11,7 @@ function defaultConfig() {
     modLogChannel: null,
     autorole: null,
     invitedBy: null,
+    lastMassDmAt: null,
     automod: {
       enabled: false,
       filterInvites: false,

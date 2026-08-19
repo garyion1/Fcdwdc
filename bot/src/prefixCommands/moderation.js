@@ -417,11 +417,20 @@ module.exports = [
   {
     name: 'dm',
     category: CATEGORY,
-    description: 'DM every member of this server with a message. Usage: dm <message>',
+    description: 'DM every member of this server with a message. Usage: dm <message>. Once per day.',
     permissions: [PermissionFlagsBits.Administrator],
-    async execute(message, args) {
+    async execute(message, args, config) {
       const text = args.join(' ');
       if (!text) return message.reply('Usage: `dm <message>`');
+
+      const cooldownMs = 24 * 60 * 60 * 1000;
+      if (config.lastMassDmAt && Date.now() - config.lastMassDmAt < cooldownMs) {
+        const nextAvailable = Math.floor((config.lastMassDmAt + cooldownMs) / 1000);
+        return message.reply(`This command is on a once-per-day cooldown. You can use it again <t:${nextAvailable}:R>.`);
+      }
+
+      config.lastMassDmAt = Date.now();
+      saveConfig(message.guild.id);
 
       const notice = await message.channel.send('📨 Sending a DM to every member... this can take a while on larger servers.');
       const members = await message.guild.members.fetch();
