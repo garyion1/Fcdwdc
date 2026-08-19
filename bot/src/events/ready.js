@@ -1,8 +1,10 @@
 const { ActivityType } = require('discord.js');
 const { getAllGuildIds, getConfig } = require('../config/database');
+const { getAdminGuildId } = require('../utils/licenses');
 const { scheduleGiveawayEnd } = require('../commands/giveaway');
 const { schedulePurge } = require('../utils/autopurge');
 const { isBotUsable } = require('../utils/premium');
+const { INVITER_GRACE_PERIOD_MS, enforceInviterLicense } = require('./guildCreate');
 
 const STATUS_ROTATION_MS = 15000;
 
@@ -49,6 +51,26 @@ module.exports = {
       }
       for (const [channelId, entry] of Object.entries(config.autopurge ?? {})) {
         schedulePurge(client, guildId, channelId, entry.intervalMinutes);
+      }
+    }
+
+    // The inviter-license grace period is only ever scheduled with an
+    // in-memory setTimeout, which a process restart silently wipes out. Redo
+    // it here on every startup, using Discord's own joinedTimestamp so a
+    // restart can't accidentally grant an unlicensed server infinite time.
+    const adminGuildId = getAdminGuildId();
+    for (const guild of client.guilds.cache.values()) {
+      if (guild.id === adminGuildId) continue;
+      const config = getConfig(guild.id);
+      if (!config.invitedBy) continue;
+
+      const elapsed = Date.now() - guild.joinedTimestamp;
+      if (elapsed >= INVITER_GRACE_PERIOD_MS) {
+        enforceInviterLicense(guild).catch((error) => console.error('Inviter license check error:', error));
+      } else {
+        setTimeout(() => {
+          enforceInviterLicense(guild).catch((error) => console.error('Inviter license check error:', error));
+        }, INVITER_GRACE_PERIOD_MS - elapsed);
       }
     }
   },

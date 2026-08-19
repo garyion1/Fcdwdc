@@ -18,6 +18,8 @@ async function enforceInviterLicense(guild) {
 
 module.exports = {
   name: 'guildCreate',
+  INVITER_GRACE_PERIOD_MS,
+  enforceInviterLicense,
   async execute(guild) {
     if (!getAdminGuildId()) {
       setAdminGuildId(guild.id);
@@ -72,6 +74,22 @@ module.exports = {
     const config = getConfig(guild.id);
     config.invitedBy = inviterId;
     saveConfig(guild.id);
+
+    const inviter = await guild.client.users.fetch(inviterId).catch(() => null);
+    if (inviter) {
+      await inviter
+        .send({
+          embeds: [
+            baseEmbed(COLORS.warning)
+              .setTitle('⏳ Redeem a license within 15 minutes')
+              .setDescription(
+                `Thanks for adding Boat Bot to **${guild.name}**! Run \`/redeem <key>\` there within the next 15 minutes, ` +
+                  "or the bot will leave automatically. Don't have a key yet? Contact the bot operator to get one.",
+              ),
+          ],
+        })
+        .catch(() => {});
+    }
 
     setTimeout(() => {
       enforceInviterLicense(guild).catch((error) => console.error('Inviter license check error:', error));

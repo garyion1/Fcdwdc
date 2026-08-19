@@ -167,6 +167,19 @@ async function closeTicket(interaction, reason) {
     embeds: [baseEmbed(COLORS.warning).setDescription(`This ticket will close in 5 seconds...${reason ? `\nReason: ${reason}` : ''}`)],
   });
 
+  const opener = await guild.client.users.fetch(ticket.userId).catch(() => null);
+  if (opener) {
+    await opener
+      .send({
+        embeds: [
+          baseEmbed(COLORS.warning)
+            .setTitle('🔒 Your ticket was closed')
+            .setDescription(`Your ticket in **${guild.name}** was closed by ${interaction.user.tag}.${reason ? `\nReason: ${reason}` : ''}`),
+        ],
+      })
+      .catch(() => {});
+  }
+
   if (config.tickets.settings.transcriptOnClose) {
     await sendTranscript(channel, config, ticket, interaction.user, reason);
   }
