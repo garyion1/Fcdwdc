@@ -119,6 +119,7 @@ module.exports = [
       const embed = baseEmbed(COLORS.primary).setDescription(`🤗 ${message.author} hugs ${user}!`);
       const gif = await fetchReactionGif('hug').catch(() => null);
       if (gif) embed.setImage(gif);
+      else embed.setFooter({ text: "Couldn't load a gif right now — try again in a moment." });
       return message.channel.send({ embeds: [embed] });
     },
   },
@@ -132,6 +133,7 @@ module.exports = [
       const embed = baseEmbed(COLORS.primary).setDescription(`💋 ${message.author} kisses ${user}!`);
       const gif = await fetchReactionGif('kiss').catch(() => null);
       if (gif) embed.setImage(gif);
+      else embed.setFooter({ text: "Couldn't load a gif right now — try again in a moment." });
       return message.channel.send({ embeds: [embed] });
     },
   },
