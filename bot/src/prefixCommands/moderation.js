@@ -470,19 +470,61 @@ module.exports = [
   {
     name: 'add',
     category: CATEGORY,
-    description: 'Set one of 5 ticket type slots. Usage: add ticket option <1-5> <name>',
+    description: 'Add a ticket type. Usage: add ticket type <name>  |  add ticket option <1-5> <name>',
     permissions: [PermissionFlagsBits.ManageGuild],
     async execute(message, args) {
-      if (args[0]?.toLowerCase() !== 'ticket' || args[1]?.toLowerCase() !== 'option') {
-        return message.reply('Usage: `add ticket option <1-5> <name>`');
+      const kind = args[1]?.toLowerCase();
+      if (args[0]?.toLowerCase() !== 'ticket' || (kind !== 'option' && kind !== 'type')) {
+        return message.reply('Usage: `add ticket type <name>` or `add ticket option <1-5> <name>`');
       }
+
+      const config = getConfig(message.guild.id);
+
+      if (kind === 'type') {
+        const name = args.slice(2).join(' ');
+        if (!name) return message.reply('Usage: `add ticket type <name>`, e.g. `add ticket type Purchase`');
+
+        if (Object.keys(config.tickets.types).length >= 25) {
+          return message.reply('You can have at most 25 ticket types (a Discord select menu limit).');
+        }
+
+        let id = slugify(name);
+        let suffix = 2;
+        while (config.tickets.types[id]) {
+          id = `${slugify(name)}-${suffix}`;
+          suffix += 1;
+        }
+
+        const notice = await message.channel.send(`🎫 Setting up ticket type **${name}**...`);
+        const category = await message.guild.channels.create({ name, type: ChannelType.GuildCategory });
+        config.tickets.types[id] = {
+          id,
+          label: name,
+          description: null,
+          category: category.id,
+          supportRoleId: null,
+          emoji: null,
+          welcomeMessage: null,
+          slot: null,
+        };
+        saveConfig(message.guild.id);
+
+        return notice.edit({
+          content: '',
+          embeds: [
+            baseEmbed(COLORS.success).setDescription(
+              `Ticket type **${name}** added, with its own auto-created category. Send a panel with \`/ticketsetup panel\`.`,
+            ),
+          ],
+        });
+      }
+
       const slot = parseInt(args[2], 10);
       const name = args.slice(3).join(' ');
       if (!Number.isInteger(slot) || slot < 1 || slot > 5 || !name) {
         return message.reply('Usage: `add ticket option <1-5> <name>`, e.g. `add ticket option 1 General Support`');
       }
 
-      const config = getConfig(message.guild.id);
       const existing = Object.values(config.tickets.types).find((t) => t.slot === slot);
 
       if (existing) {
@@ -529,14 +571,51 @@ module.exports = [
   {
     name: 'remove',
     category: CATEGORY,
-    description: 'Remove one (or all) of the 5 ticket type slots. Usage: remove ticket option <1-5|all>',
+    description: 'Remove ticket type(s). Usage: remove ticket type <name|all>  |  remove ticket option <1-5|all>',
     permissions: [PermissionFlagsBits.ManageGuild],
     async execute(message, args) {
-      if (args[0]?.toLowerCase() !== 'ticket' || args[1]?.toLowerCase() !== 'option') {
-        return message.reply('Usage: `remove ticket option <1-5|all>`');
+      const kind = args[1]?.toLowerCase();
+      if (args[0]?.toLowerCase() !== 'ticket' || (kind !== 'option' && kind !== 'type' && kind !== 'types')) {
+        return message.reply('Usage: `remove ticket type <name|all>` or `remove ticket option <1-5|all>`');
       }
 
       const config = getConfig(message.guild.id);
+
+      if (kind === 'type' || kind === 'types') {
+        const target = args.slice(2).join(' ');
+        if (!target) return message.reply('Usage: `remove ticket type <name|all>`');
+
+        if (target.toLowerCase() === 'all') {
+          const all = Object.values(config.tickets.types);
+          if (all.length === 0) return message.reply('No ticket types are configured.');
+
+          for (const entry of all) delete config.tickets.types[entry.id];
+          saveConfig(message.guild.id);
+
+          return message.channel.send({
+            embeds: [
+              baseEmbed(COLORS.success).setDescription(
+                `Cleared all ${all.length} ticket type(s). Their category channels were left in place — delete them manually if you don't need them.`,
+              ),
+            ],
+          });
+        }
+
+        const entry = Object.values(config.tickets.types).find(
+          (t) => t.id === target || t.label.toLowerCase() === target.toLowerCase(),
+        );
+        if (!entry) return message.reply('No ticket type found with that name.');
+
+        delete config.tickets.types[entry.id];
+        saveConfig(message.guild.id);
+        return message.channel.send({
+          embeds: [
+            baseEmbed(COLORS.success).setDescription(
+              `Ticket type **${entry.label}** removed. Its category channel was left in place — delete it manually if you don't need it.`,
+            ),
+          ],
+        });
+      }
 
       if (args[2]?.toLowerCase() === 'all') {
         const slots = Object.values(config.tickets.types).filter((t) => t.slot);
