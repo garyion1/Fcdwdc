@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, MessageFlags } = require('discord.js');
 const { COLORS } = require('../utils/embeds');
+const { containsBadWord } = require('../utils/profanity');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,6 +21,10 @@ module.exports = {
     const image = interaction.options.getString('image');
     const footer = interaction.options.getString('footer');
     const channel = interaction.options.getChannel('channel') ?? interaction.channel;
+
+    if (containsBadWord([title, description, footer].filter(Boolean).join(' '), interaction.guildId)) {
+      return interaction.reply({ content: 'That embed contains a blocked word and was not sent.', flags: MessageFlags.Ephemeral });
+    }
 
     const embed = new EmbedBuilder().setDescription(description).setColor(COLORS.primary);
     if (title) embed.setTitle(title);

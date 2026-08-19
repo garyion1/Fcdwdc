@@ -36,6 +36,7 @@ module.exports = {
         { name: '/support', value: 'Get help from the support team.' },
         { name: '/customcommand', value: 'Create custom text commands.' },
         { name: '/embed', value: 'Build and send a custom embed.' },
+        { name: '/say', value: 'Make the bot say something.' },
         { name: '/reactionrole', value: 'Set up reaction roles.' },
         { name: '/giveaway', value: 'Start and manage giveaways.' },
       )

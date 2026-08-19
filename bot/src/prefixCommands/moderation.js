@@ -6,6 +6,7 @@ const { lockChannel, unlockChannel } = require('../utils/channelLock');
 const { schedulePurge, stopPurge } = require('../utils/autopurge');
 const { isRaidActive, endRaidMode } = require('../utils/antiraid');
 const { jailMember, unjailMember } = require('../utils/jail');
+const { containsBadWord } = require('../utils/profanity');
 const { resolveUser } = require('../utils/args');
 
 const CATEGORY = 'Moderation';
@@ -362,6 +363,36 @@ module.exports = [
       if (result.notJailed) return message.reply(`**${user.tag}** is not jailed.`);
 
       return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`🔓 **${user.tag}** has been released from jail.`)] });
+    },
+  },
+  {
+    name: 'say',
+    category: CATEGORY,
+    description: 'Make the bot say something in this channel. Usage: say <message>',
+    permissions: [PermissionFlagsBits.ManageMessages],
+    async execute(message, args) {
+      const text = args.join(' ');
+      if (!text) return message.reply('Usage: `say <message>`');
+      if (containsBadWord(text, message.guild.id)) {
+        return message.reply('That message contains a blocked word and was not sent.');
+      }
+      await message.delete().catch(() => {});
+      return message.channel.send(text);
+    },
+  },
+  {
+    name: 'embed',
+    category: CATEGORY,
+    description: 'Make the bot send an embed with your text. Usage: embed <message>',
+    permissions: [PermissionFlagsBits.ManageMessages],
+    async execute(message, args) {
+      const text = args.join(' ');
+      if (!text) return message.reply('Usage: `embed <message>`');
+      if (containsBadWord(text, message.guild.id)) {
+        return message.reply('That message contains a blocked word and was not sent.');
+      }
+      await message.delete().catch(() => {});
+      return message.channel.send({ embeds: [baseEmbed().setDescription(text)] });
     },
   },
   {

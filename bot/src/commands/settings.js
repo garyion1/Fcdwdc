@@ -72,6 +72,19 @@ module.exports = {
         .addStringOption((o) =>
           o.setName('value').setDescription('The prefix (add/remove), or a space-separated list of prefixes (set), e.g. "! . , >>"'),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('bannedwords')
+        .setDescription('Extend the blocklist used by automod and ,say/,embed filtering.')
+        .addStringOption((o) =>
+          o
+            .setName('action')
+            .setDescription('What to do')
+            .setRequired(true)
+            .addChoices({ name: 'Add', value: 'add' }, { name: 'Remove', value: 'remove' }, { name: 'List', value: 'list' }),
+        )
+        .addStringOption((o) => o.setName('word').setDescription('The word (for add/remove)')),
     ),
 
   async execute(interaction) {
@@ -174,6 +187,40 @@ module.exports = {
       saveConfig(interaction.guildId);
       return interaction.reply({
         embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes updated: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)],
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    if (sub === 'bannedwords') {
+      const action = interaction.options.getString('action', true);
+      const word = interaction.options.getString('word')?.toLowerCase().trim();
+
+      if (action === 'list') {
+        return interaction.reply({
+          content: config.automod.bannedWords.length
+            ? `Banned words: ${config.automod.bannedWords.map((w) => `\`${w}\``).join(', ')}`
+            : 'No extra banned words configured (a baseline profanity filter still applies).',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      if (!word) return interaction.reply({ content: 'Provide a word.', flags: MessageFlags.Ephemeral });
+
+      if (action === 'add') {
+        if (config.automod.bannedWords.includes(word)) {
+          return interaction.reply({ content: `\`${word}\` is already banned.`, flags: MessageFlags.Ephemeral });
+        }
+        config.automod.bannedWords.push(word);
+      } else {
+        config.automod.bannedWords = config.automod.bannedWords.filter((w) => w !== word);
+      }
+      saveConfig(interaction.guildId);
+      return interaction.reply({
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            `Banned words updated: ${config.automod.bannedWords.map((w) => `\`${w}\``).join(', ') || 'None'}`,
+          ),
+        ],
         flags: MessageFlags.Ephemeral,
       });
     }

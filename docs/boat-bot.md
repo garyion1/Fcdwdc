@@ -53,7 +53,8 @@ A powerful Discord bot built for easy server management — fast, reliable, and 
 | `/settings`     | Manage bot settings, including prefixes               |
 | `/support`      | Get help from the support team                        |
 | `/customcommand`| Create custom text commands                          |
-| `/embed`        | Build and send a custom embed                        |
+| `/embed`        | Build and send a custom embed (profanity-filtered)     |
+| `/say`          | Make the bot say something (profanity-filtered)       |
 | `/reactionrole` | Set up reaction roles                                |
 | `/giveaway`     | Start and manage giveaways                           |
 

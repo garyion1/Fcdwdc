@@ -95,7 +95,7 @@ single jail channel — see below), `/autopurge` (schedule a channel to
 auto-clean on a repeating interval), `/antiraid` (burst-join detection with optional
 auto-lockdown, plus an always-on minimum account age gate), `/license` / `/redeem` /
 `/premium` / `/adminserver` (built-in licensing — see below), `/customcommand`,
-`/embed`, `/reactionrole`, `/giveaway`
+`/embed`, `/say`, `/reactionrole`, `/giveaway`
 
 ### Text (prefix) commands
 
@@ -105,7 +105,7 @@ prefixes (default: `!` `.` `?` `,` `$` — manage them with `/settings prefix`).
 
 - **Moderation** — `lock`, `unlock`, `kick`, `ban`, `unban`, `timeout`/`mute`,
   `untimeout`/`unmute`, `warn`, `warnings`, `warnclear`, `clear`/`purge`, `purgeuser`,
-  `purgebots`, `autopurge`, `antiraid`, `jail`, `unjail`, `slowmode`, `nick`
+  `purgebots`, `autopurge`, `antiraid`, `jail`, `unjail`, `say`, `embed`, `slowmode`, `nick`
 - **Utility** — `ping`, `avatar`, `userinfo`/`whois`, `serverinfo`/`guildinfo`,
   `roleinfo`, `banner`, `invite`, `botinfo`/`about`, `uptime`, `prefix`,
   `channelinfo`, `membercount`, `id`, `firstmessage`/`firstmsg`, `emojis`
@@ -139,6 +139,18 @@ exactly). Any channel created *after* that point is automatically locked out for
 `Jailed` role too, so the jail doesn't leak as the server grows. Requires **Moderate
 Members**; fails cleanly with a role-hierarchy message if the bot can't manage the
 target.
+
+### /say, ,say, /embed, ,embed and the profanity filter
+
+`say`/`embed` (both slash and prefix, **Manage Messages** required) make the bot
+post text — plain for `say`, wrapped in an embed for `embed`. Since this lets a mod
+put arbitrary words in the bot's mouth, every one of these four is filtered through
+`src/utils/profanity.js` before sending: if the text matches a blocked word, nothing
+is posted and the invoker gets a rejection instead. The filter checks a small
+built-in baseline of common profanity (deliberately not exhaustive — no slurs are
+hardcoded into the source) plus each server's own extended list, managed with
+`/settings bannedwords add|remove|list`. That same per-server list also feeds the
+existing automod word filter, so adding a word once covers both.
 
 ### Licensing (self-managed, no payment backend)
 
