@@ -10,6 +10,7 @@ function defaultConfig() {
     logChannel: null,
     modLogChannel: null,
     autorole: null,
+    invitedBy: null,
     automod: {
       enabled: false,
       filterInvites: false,

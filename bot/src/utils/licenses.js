@@ -80,6 +80,16 @@ function listLicenses() {
   return listLicensesStmt.all().map((row) => ({ key: row.key, ...rowToLicense(row) }));
 }
 
+const listUserLicensesStmt = db.prepare('SELECT * FROM licenses WHERE redeemed = 1 AND redeemed_by = ?');
+
+// Whether this person personally holds a still-valid license (lifetime, or
+// monthly and not yet expired) — regardless of which server they redeemed it
+// in. Used to gate who's allowed to have the bot in a server at all.
+function hasActiveLicenseForUser(userId) {
+  const now = Date.now();
+  return listUserLicensesStmt.all(userId).some((row) => !row.expires_at || row.expires_at > now);
+}
+
 module.exports = {
   getAdminGuildId,
   setAdminGuildId,
@@ -88,4 +98,5 @@ module.exports = {
   redeemLicense,
   revokeLicense,
   listLicenses,
+  hasActiveLicenseForUser,
 };

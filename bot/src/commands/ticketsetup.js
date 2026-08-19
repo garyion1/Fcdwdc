@@ -14,7 +14,10 @@ module.exports = {
         .setDescription('Add a ticket type (category button/menu option).')
         .addStringOption((o) => o.setName('label').setDescription('Name shown to users, e.g. "General Support"').setRequired(true))
         .addChannelOption((o) =>
-          o.setName('category').setDescription('Category tickets of this type are created under').setRequired(true).addChannelTypes(ChannelType.GuildCategory),
+          o
+            .setName('category')
+            .setDescription('Category tickets of this type are created under (omit to auto-create one named after this type)')
+            .addChannelTypes(ChannelType.GuildCategory),
         )
         .addRoleOption((o) => o.setName('support_role').setDescription('Role given access to these tickets and pinged on open'))
         .addStringOption((o) => o.setName('emoji').setDescription('Emoji for the button/menu option'))
@@ -52,7 +55,7 @@ module.exports = {
 
     if (sub === 'addtype') {
       const label = interaction.options.getString('label', true);
-      const category = interaction.options.getChannel('category', true);
+      const providedCategory = interaction.options.getChannel('category');
       const supportRole = interaction.options.getRole('support_role');
       const emoji = interaction.options.getString('emoji');
       const welcomeMessage = interaction.options.getString('welcome_message');
@@ -68,20 +71,28 @@ module.exports = {
         suffix += 1;
       }
 
+      let categoryId = providedCategory?.id ?? null;
+      let createdCategory = false;
+      if (!categoryId) {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const newCategory = await interaction.guild.channels.create({ name: label, type: ChannelType.GuildCategory });
+        categoryId = newCategory.id;
+        createdCategory = true;
+      }
+
       config.tickets.types[id] = {
         id,
         label,
-        category: category.id,
+        category: categoryId,
         supportRoleId: supportRole?.id ?? null,
         emoji: emoji ?? null,
         welcomeMessage: welcomeMessage ?? null,
       };
       saveConfig(interaction.guildId);
 
-      return interaction.reply({
-        embeds: [baseEmbed(COLORS.success).setDescription(`Ticket type **${label}** added. Send a panel that includes it with \`/ticketsetup panel\`.`)],
-        flags: MessageFlags.Ephemeral,
-      });
+      const description = `Ticket type **${label}** added${createdCategory ? ` — created a new **${label}** category for it` : ''}. Send a panel that includes it with \`/ticketsetup panel\`.`;
+      const embed = baseEmbed(COLORS.success).setDescription(description);
+      return createdCategory ? interaction.editReply({ embeds: [embed] }) : interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     if (sub === 'removetype') {

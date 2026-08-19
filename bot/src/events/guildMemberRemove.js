@@ -12,8 +12,15 @@ function formatMessage(template, member) {
 module.exports = {
   name: 'guildMemberRemove',
   async execute(member) {
-    if (!isBotUsable(member.guild.id)) return;
     const config = getConfig(member.guild.id);
+
+    if (config.invitedBy && member.id === config.invitedBy) {
+      console.log(`Leaving "${member.guild.name}" (${member.guild.id}) — the member who invited Boat Bot just left.`);
+      await member.guild.leave().catch(() => {});
+      return;
+    }
+
+    if (!isBotUsable(member.guild.id)) return;
     if (!config.leaveChannel) return;
     const channel = member.guild.channels.cache.get(config.leaveChannel);
     if (!channel) return;
