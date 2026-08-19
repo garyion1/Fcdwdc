@@ -529,18 +529,36 @@ module.exports = [
   {
     name: 'remove',
     category: CATEGORY,
-    description: 'Remove one of the 5 ticket type slots. Usage: remove ticket option <1-5>',
+    description: 'Remove one (or all) of the 5 ticket type slots. Usage: remove ticket option <1-5|all>',
     permissions: [PermissionFlagsBits.ManageGuild],
     async execute(message, args) {
       if (args[0]?.toLowerCase() !== 'ticket' || args[1]?.toLowerCase() !== 'option') {
-        return message.reply('Usage: `remove ticket option <1-5>`');
-      }
-      const slot = parseInt(args[2], 10);
-      if (!Number.isInteger(slot) || slot < 1 || slot > 5) {
-        return message.reply('Usage: `remove ticket option <1-5>`');
+        return message.reply('Usage: `remove ticket option <1-5|all>`');
       }
 
       const config = getConfig(message.guild.id);
+
+      if (args[2]?.toLowerCase() === 'all') {
+        const slots = Object.values(config.tickets.types).filter((t) => t.slot);
+        if (slots.length === 0) return message.reply('No ticket options are set.');
+
+        for (const entry of slots) delete config.tickets.types[entry.id];
+        saveConfig(message.guild.id);
+
+        return message.channel.send({
+          embeds: [
+            baseEmbed(COLORS.success).setDescription(
+              `Cleared all ${slots.length} ticket option(s). Their category channels were left in place — delete them manually if you don't need them.`,
+            ),
+          ],
+        });
+      }
+
+      const slot = parseInt(args[2], 10);
+      if (!Number.isInteger(slot) || slot < 1 || slot > 5) {
+        return message.reply('Usage: `remove ticket option <1-5|all>`');
+      }
+
       const entry = Object.values(config.tickets.types).find((t) => t.slot === slot);
       if (!entry) return message.reply(`No ticket option ${slot} exists.`);
 
