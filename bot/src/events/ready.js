@@ -27,7 +27,7 @@ function startStatusRotation(client) {
   const apply = () => {
     const statuses = buildStatuses(client);
     const status = statuses[index % statuses.length];
-    client.user.setActivity(status.name, { type: status.type });
+    client.user.setPresence({ status: 'dnd', activities: [{ name: status.name, type: status.type }] });
     index += 1;
   };
 
