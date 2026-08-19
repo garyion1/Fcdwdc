@@ -1,4 +1,5 @@
 const { getConfig } = require('../config/database');
+const { isBotUsable } = require('../utils/premium');
 
 module.exports = {
   name: 'messageReactionAdd',
@@ -12,6 +13,7 @@ module.exports = {
       }
     }
     if (!reaction.message.guild) return;
+    if (!isBotUsable(reaction.message.guild.id)) return;
 
     const config = getConfig(reaction.message.guild.id);
     const bindings = config.reactionRoles[reaction.message.id];

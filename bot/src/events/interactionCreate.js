@@ -1,6 +1,13 @@
 const { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const { getConfig } = require('../config/database');
 const { openTicket, claimTicket, closeTicket } = require('../utils/tickets');
+const { isBotUsable } = require('../utils/premium');
+
+// These stay usable even without an active license — they're how a server
+// gets premium in the first place, or gets help/support while it doesn't.
+const PREMIUM_EXEMPT_COMMANDS = new Set(['help', 'premium', 'redeem', 'support', 'license', 'adminserver']);
+const NO_LICENSE_MESSAGE =
+  'This server does not have an active Boat Bot license. Run `/redeem <key>` to activate premium, or `/premium` to check status.';
 
 module.exports = {
   name: 'interactionCreate',
@@ -8,6 +15,9 @@ module.exports = {
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
       if (!command) return;
+      if (!PREMIUM_EXEMPT_COMMANDS.has(interaction.commandName) && !isBotUsable(interaction.guildId)) {
+        return interaction.reply({ content: NO_LICENSE_MESSAGE, flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
       try {
         await command.execute(interaction, client);
       } catch (error) {
@@ -23,6 +33,9 @@ module.exports = {
     }
 
     if (interaction.isButton()) {
+      if (!isBotUsable(interaction.guild?.id)) {
+        return interaction.reply({ content: NO_LICENSE_MESSAGE, flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
       if (interaction.customId.startsWith('boatbot_open_ticket:')) {
         const typeId = interaction.customId.split(':')[1];
         return openTicket(interaction, typeId);
@@ -49,10 +62,16 @@ module.exports = {
     }
 
     if (interaction.isStringSelectMenu() && interaction.customId === 'boatbot_open_ticket_select') {
+      if (!isBotUsable(interaction.guild?.id)) {
+        return interaction.reply({ content: NO_LICENSE_MESSAGE, flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
       return openTicket(interaction, interaction.values[0]);
     }
 
     if (interaction.isModalSubmit() && interaction.customId === 'boatbot_close_reason_modal') {
+      if (!isBotUsable(interaction.guild?.id)) {
+        return interaction.reply({ content: NO_LICENSE_MESSAGE, flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
       const reason = interaction.fields.getTextInputValue('reason');
       return closeTicket(interaction, reason);
     }

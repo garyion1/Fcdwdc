@@ -2,6 +2,7 @@ const { getConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { recordJoin, isRaidActive, triggerRaidMode } = require('../utils/antiraid');
 const { logAction } = require('../utils/logger');
+const { isBotUsable } = require('../utils/premium');
 
 function formatMessage(template, member) {
   return template
@@ -13,6 +14,7 @@ function formatMessage(template, member) {
 module.exports = {
   name: 'guildMemberAdd',
   async execute(member) {
+    if (!isBotUsable(member.guild.id)) return;
     const config = getConfig(member.guild.id);
 
     if (config.antiraid?.enabled) {

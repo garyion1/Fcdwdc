@@ -1,10 +1,12 @@
 const { getConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
+const { isBotUsable } = require('../utils/premium');
 
 module.exports = {
   name: 'messageDelete',
   async execute(message) {
     if (!message.guild || message.author?.bot) return;
+    if (!isBotUsable(message.guild.id)) return;
     const config = getConfig(message.guild.id);
     if (!config.logChannel) return;
     const channel = message.guild.channels.cache.get(config.logChannel);

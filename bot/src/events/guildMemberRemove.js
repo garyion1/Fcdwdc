@@ -1,5 +1,6 @@
 const { getConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
+const { isBotUsable } = require('../utils/premium');
 
 function formatMessage(template, member) {
   return template
@@ -11,6 +12,7 @@ function formatMessage(template, member) {
 module.exports = {
   name: 'guildMemberRemove',
   async execute(member) {
+    if (!isBotUsable(member.guild.id)) return;
     const config = getConfig(member.guild.id);
     if (!config.leaveChannel) return;
     const channel = member.guild.channels.cache.get(config.leaveChannel);

@@ -2,6 +2,7 @@ const { ActivityType } = require('discord.js');
 const { getAllGuildIds, getConfig } = require('../config/database');
 const { scheduleGiveawayEnd } = require('../commands/giveaway');
 const { schedulePurge } = require('../utils/autopurge');
+const { isBotUsable } = require('../utils/premium');
 
 const STATUS_ROTATION_MS = 15000;
 
@@ -40,6 +41,7 @@ module.exports = {
     startStatusRotation(client);
 
     for (const guildId of getAllGuildIds()) {
+      if (!isBotUsable(guildId)) continue;
       const config = getConfig(guildId);
       for (const [messageId, giveaway] of Object.entries(config.giveaways ?? {})) {
         if (giveaway.ended) continue;

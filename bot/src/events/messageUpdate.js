@@ -1,11 +1,13 @@
 const { getConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
+const { isBotUsable } = require('../utils/premium');
 
 module.exports = {
   name: 'messageUpdate',
   async execute(oldMessage, newMessage) {
     if (!newMessage.guild || newMessage.author?.bot) return;
     if (oldMessage.content === newMessage.content) return;
+    if (!isBotUsable(newMessage.guild.id)) return;
 
     const config = getConfig(newMessage.guild.id);
     if (!config.logChannel) return;

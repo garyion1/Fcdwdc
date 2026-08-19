@@ -1,6 +1,12 @@
 const { PermissionFlagsBits } = require('discord.js');
 const { getConfig } = require('../config/database');
 const { logAction } = require('../utils/logger');
+const { isBotUsable } = require('../utils/premium');
+
+// Prefix commands that stay usable even without an active license.
+const PREMIUM_EXEMPT_PREFIX_COMMANDS = new Set(['commands', 'cmds', 'prefixhelp']);
+const NO_LICENSE_MESSAGE =
+  'This server does not have an active Boat Bot license. Run `/redeem <key>` to activate premium, or `/premium` to check status.';
 
 const INVITE_REGEX = /(discord\.gg|discord(?:app)?\.com\/invite)\/\S+/i;
 const LINK_REGEX = /https?:\/\/\S+/i;
@@ -28,8 +34,9 @@ module.exports = {
     if (message.author.bot || !message.guild) return;
 
     const config = getConfig(message.guild.id);
+    const usable = isBotUsable(message.guild.id);
 
-    if (config.automod?.enabled && !message.member?.permissions.has(PermissionFlagsBits.ManageMessages)) {
+    if (usable && config.automod?.enabled && !message.member?.permissions.has(PermissionFlagsBits.ManageMessages)) {
       const reasons = [];
       if (config.automod.filterInvites && INVITE_REGEX.test(message.content)) reasons.push('Discord invite link');
       if (config.automod.filterLinks && LINK_REGEX.test(message.content)) reasons.push('link');
@@ -59,6 +66,9 @@ module.exports = {
 
     const command = client.prefixCommands.get(commandName);
     if (command) {
+      if (!usable && !PREMIUM_EXEMPT_PREFIX_COMMANDS.has(commandName)) {
+        return message.reply(NO_LICENSE_MESSAGE).catch(() => {});
+      }
       if (command.permissions && !message.member?.permissions.has(command.permissions)) {
         return message.reply("You don't have permission to use that command.").catch(() => {});
       }
@@ -70,6 +80,8 @@ module.exports = {
       }
       return;
     }
+
+    if (!usable) return;
 
     const response = config.customCommands[commandName];
     if (response) await message.channel.send(response).catch(() => {});
