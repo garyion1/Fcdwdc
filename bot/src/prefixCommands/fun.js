@@ -1,6 +1,5 @@
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { resolveUser } = require('../utils/args');
-const { fetchReactionGif } = require('../utils/gifs');
 
 const CATEGORY = 'Fun';
 
@@ -117,9 +116,6 @@ module.exports = [
       const user = await resolveUser(message, args[0]);
       if (!user) return message.reply('Usage: `hug @user`');
       const embed = baseEmbed(COLORS.primary).setDescription(`🤗 ${message.author} hugs ${user}!`);
-      const gif = await fetchReactionGif('hug').catch(() => null);
-      if (gif) embed.setImage(gif);
-      else embed.setFooter({ text: "Couldn't load a gif right now — try again in a moment." });
       return message.channel.send({ embeds: [embed] });
     },
   },
@@ -131,9 +127,6 @@ module.exports = [
       const user = await resolveUser(message, args[0]);
       if (!user) return message.reply('Usage: `kiss @user`');
       const embed = baseEmbed(COLORS.primary).setDescription(`💋 ${message.author} kisses ${user}!`);
-      const gif = await fetchReactionGif('kiss').catch(() => null);
-      if (gif) embed.setImage(gif);
-      else embed.setFooter({ text: "Couldn't load a gif right now — try again in a moment." });
       return message.channel.send({ embeds: [embed] });
     },
   },

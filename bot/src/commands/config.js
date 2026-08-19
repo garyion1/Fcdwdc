@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { getConfig, saveConfig, defaultConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
@@ -19,8 +19,7 @@ module.exports = {
       Object.assign(config, defaultConfig());
       saveConfig(guildId);
       return interaction.reply({
-        embeds: [baseEmbed(COLORS.success).setTitle('Configuration reset').setDescription('All settings have been reset to their defaults.')],
-        flags: MessageFlags.Ephemeral,
+        embeds: [baseEmbed(COLORS.success).setTitle('Configuration reset').setDescription('All settings have been reset to their defaults.')]
       });
     }
 
@@ -40,6 +39,6 @@ module.exports = {
         { name: 'Ticket types', value: `${Object.keys(config.tickets.types).length}`, inline: true },
       );
 
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    await interaction.reply({ embeds: [embed] });
   },
 };

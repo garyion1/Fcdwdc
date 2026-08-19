@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { logAction } = require('../utils/logger');
@@ -59,7 +59,7 @@ module.exports = {
       const reason = interaction.options.getString('reason') ?? 'No reason provided';
       const member = await guild.members.fetch(user.id).catch(() => null);
       if (member && !member.bannable) {
-        return interaction.reply({ content: 'I cannot ban that member (check role hierarchy).', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'I cannot ban that member (check role hierarchy).' });
       }
       await guild.members.ban(user.id, { reason });
       await logAction(guild, `🔨 **${user.tag}** was banned by ${interaction.user.tag}\nReason: ${reason}`);
@@ -70,8 +70,8 @@ module.exports = {
       const user = interaction.options.getUser('user', true);
       const reason = interaction.options.getString('reason') ?? 'No reason provided';
       const member = await guild.members.fetch(user.id).catch(() => null);
-      if (!member) return interaction.reply({ content: 'That user is not in this server.', flags: MessageFlags.Ephemeral });
-      if (!member.kickable) return interaction.reply({ content: 'I cannot kick that member (check role hierarchy).', flags: MessageFlags.Ephemeral });
+      if (!member) return interaction.reply({ content: 'That user is not in this server.' });
+      if (!member.kickable) return interaction.reply({ content: 'I cannot kick that member (check role hierarchy).' });
       await member.kick(reason);
       await logAction(guild, `👢 **${user.tag}** was kicked by ${interaction.user.tag}\nReason: ${reason}`);
       return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been kicked.\nReason: ${reason}`)] });
@@ -82,8 +82,8 @@ module.exports = {
       const minutes = interaction.options.getInteger('minutes', true);
       const reason = interaction.options.getString('reason') ?? 'No reason provided';
       const member = await guild.members.fetch(user.id).catch(() => null);
-      if (!member) return interaction.reply({ content: 'That user is not in this server.', flags: MessageFlags.Ephemeral });
-      if (!member.moderatable) return interaction.reply({ content: 'I cannot timeout that member (check role hierarchy).', flags: MessageFlags.Ephemeral });
+      if (!member) return interaction.reply({ content: 'That user is not in this server.' });
+      if (!member.moderatable) return interaction.reply({ content: 'I cannot timeout that member (check role hierarchy).' });
       await member.timeout(minutes * 60 * 1000, reason);
       await logAction(guild, `⏱️ **${user.tag}** was timed out for ${minutes}m by ${interaction.user.tag}\nReason: ${reason}`);
       return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been timed out for ${minutes} minute(s).\nReason: ${reason}`)] });
@@ -107,18 +107,17 @@ module.exports = {
       const config = getConfig(guild.id);
       const warnings = config.warnings[user.id] ?? [];
       if (warnings.length === 0) {
-        return interaction.reply({ embeds: [baseEmbed().setDescription(`**${user.tag}** has no warnings.`)], flags: MessageFlags.Ephemeral });
+        return interaction.reply({ embeds: [baseEmbed().setDescription(`**${user.tag}** has no warnings.`)] });
       }
       const list = warnings.map((w, i) => `**${i + 1}.** ${w.reason} — <t:${Math.floor(w.timestamp / 1000)}:R>`).join('\n');
       return interaction.reply({
-        embeds: [baseEmbed(COLORS.warning).setTitle(`Warnings for ${user.tag}`).setDescription(list)],
-        flags: MessageFlags.Ephemeral,
+        embeds: [baseEmbed(COLORS.warning).setTitle(`Warnings for ${user.tag}`).setDescription(list)]
       });
     }
 
     if (sub === 'clear') {
       const amount = interaction.options.getInteger('amount', true);
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply();
       const deleted = await interaction.channel.bulkDelete(amount, true).catch(() => null);
       if (!deleted) {
         return interaction.editReply('Failed to delete messages (they may be older than 14 days).');

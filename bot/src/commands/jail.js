@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { jailMember } = require('../utils/jail');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
@@ -15,9 +15,9 @@ module.exports = {
     const reason = interaction.options.getString('reason') ?? 'No reason provided';
 
     const member = await interaction.guild.members.fetch(user.id).catch(() => null);
-    if (!member) return interaction.reply({ content: 'That user is not in this server.', flags: MessageFlags.Ephemeral });
+    if (!member) return interaction.reply({ content: 'That user is not in this server.' });
     if (!member.manageable) {
-      return interaction.reply({ content: 'I cannot jail that member (check role hierarchy).', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'I cannot jail that member (check role hierarchy).' });
     }
 
     await interaction.deferReply();

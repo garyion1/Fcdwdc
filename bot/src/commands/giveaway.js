@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
@@ -91,8 +91,7 @@ module.exports = {
 
       if (!durationMs) {
         return interaction.reply({
-          content: 'Invalid duration. Use a number followed by s, m, h, or d (e.g. `30m`, `2h`, `1d`).',
-          flags: MessageFlags.Ephemeral,
+          content: 'Invalid duration. Use a number followed by s, m, h, or d (e.g. `30m`, `2h`, `1d`).'
         });
       }
 
@@ -122,24 +121,24 @@ module.exports = {
       const messageId = interaction.options.getString('message_id', true).trim();
       const giveaway = config.giveaways[messageId];
       if (!giveaway || giveaway.ended) {
-        return interaction.reply({ content: 'No active giveaway found with that message ID.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'No active giveaway found with that message ID.' });
       }
       await endGiveaway(interaction.client, interaction.guildId, messageId);
-      return interaction.reply({ content: 'Giveaway ended.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Giveaway ended.' });
     }
 
     if (sub === 'reroll') {
       const messageId = interaction.options.getString('message_id', true).trim();
       const giveaway = config.giveaways[messageId];
       if (!giveaway || !giveaway.ended) {
-        return interaction.reply({ content: 'That giveaway has not ended yet, or does not exist.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'That giveaway has not ended yet, or does not exist.' });
       }
       const winners = await pickWinners(interaction.client, interaction.guildId, { ...giveaway, messageId });
       const channel = await interaction.client.channels.fetch(giveaway.channelId).catch(() => null);
       if (channel && winners.length > 0) {
         await channel.send(`🎉 New winner(s) for **${giveaway.prize}**: ${winners.map((w) => `<@${w}>`).join(', ')}`);
       }
-      return interaction.reply({ content: 'Giveaway rerolled.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Giveaway rerolled.' });
     }
   },
 

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { containsBadWord } = require('../utils/profanity');
 
 module.exports = {
@@ -14,10 +14,10 @@ module.exports = {
     const channel = interaction.options.getChannel('channel') ?? interaction.channel;
 
     if (containsBadWord(text, interaction.guildId)) {
-      return interaction.reply({ content: 'That message contains a blocked word and was not sent.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'That message contains a blocked word and was not sent.' });
     }
 
     await channel.send(text);
-    await interaction.reply({ content: `Sent to ${channel}.`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: `Sent to ${channel}.` });
   },
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { slugify, buildPanelComponents } = require('../utils/tickets');
@@ -13,6 +13,9 @@ module.exports = {
         .setName('addtype')
         .setDescription('Add a ticket type (category button/menu option).')
         .addStringOption((o) => o.setName('label').setDescription('Name shown to users, e.g. "General Support"').setRequired(true))
+        .addStringOption((o) =>
+          o.setName('description').setDescription('Short blurb shown under the label when picking a ticket type').setMaxLength(100),
+        )
         .addChannelOption((o) =>
           o
             .setName('category')
@@ -55,13 +58,14 @@ module.exports = {
 
     if (sub === 'addtype') {
       const label = interaction.options.getString('label', true);
+      const typeDescription = interaction.options.getString('description');
       const providedCategory = interaction.options.getChannel('category');
       const supportRole = interaction.options.getRole('support_role');
       const emoji = interaction.options.getString('emoji');
       const welcomeMessage = interaction.options.getString('welcome_message');
 
       if (Object.keys(config.tickets.types).length >= 25) {
-        return interaction.reply({ content: 'You can have at most 25 ticket types (a Discord select menu limit).', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'You can have at most 25 ticket types (a Discord select menu limit).' });
       }
 
       let id = slugify(label);
@@ -74,7 +78,7 @@ module.exports = {
       let categoryId = providedCategory?.id ?? null;
       let createdCategory = false;
       if (!categoryId) {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        await interaction.deferReply();
         const newCategory = await interaction.guild.channels.create({ name: label, type: ChannelType.GuildCategory });
         categoryId = newCategory.id;
         createdCategory = true;
@@ -83,6 +87,7 @@ module.exports = {
       config.tickets.types[id] = {
         id,
         label,
+        description: typeDescription ?? null,
         category: categoryId,
         supportRoleId: supportRole?.id ?? null,
         emoji: emoji ?? null,
@@ -92,38 +97,38 @@ module.exports = {
 
       const description = `Ticket type **${label}** added${createdCategory ? ` — created a new **${label}** category for it` : ''}. Send a panel that includes it with \`/ticketsetup panel\`.`;
       const embed = baseEmbed(COLORS.success).setDescription(description);
-      return createdCategory ? interaction.editReply({ embeds: [embed] }) : interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      return createdCategory ? interaction.editReply({ embeds: [embed] }) : interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'removetype') {
       const label = interaction.options.getString('label', true);
       const entry = Object.values(config.tickets.types).find((t) => t.id === label || t.label.toLowerCase() === label.toLowerCase());
-      if (!entry) return interaction.reply({ content: 'No ticket type found with that name.', flags: MessageFlags.Ephemeral });
+      if (!entry) return interaction.reply({ content: 'No ticket type found with that name.' });
       delete config.tickets.types[entry.id];
       saveConfig(interaction.guildId);
-      return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription(`Ticket type **${entry.label}** removed.`)], flags: MessageFlags.Ephemeral });
+      return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription(`Ticket type **${entry.label}** removed.`)] });
     }
 
     if (sub === 'listtypes') {
       const types = Object.values(config.tickets.types);
       if (types.length === 0) {
-        return interaction.reply({ content: 'No ticket types configured yet. Add one with `/ticketsetup addtype`.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'No ticket types configured yet. Add one with `/ticketsetup addtype`.' });
       }
       const embed = baseEmbed()
         .setTitle('Ticket Types')
         .addFields(
           types.map((t) => ({
             name: `${t.emoji ?? '🎫'} ${t.label}`,
-            value: `Category: <#${t.category}>\nSupport role: ${t.supportRoleId ? `<@&${t.supportRoleId}>` : 'None'}`,
+            value: `${t.description ? `${t.description}\n` : ''}Category: <#${t.category}>\nSupport role: ${t.supportRoleId ? `<@&${t.supportRoleId}>` : 'None'}`,
           })),
         );
-      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      return interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'panel') {
       const types = Object.values(config.tickets.types);
       if (types.length === 0) {
-        return interaction.reply({ content: 'Add at least one ticket type first with `/ticketsetup addtype`.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Add at least one ticket type first with `/ticketsetup addtype`.' });
       }
       const channel = interaction.options.getChannel('channel', true);
       const title = interaction.options.getString('title') ?? 'Support Tickets';
@@ -134,7 +139,7 @@ module.exports = {
       if (color && /^#?[0-9a-f]{6}$/i.test(color)) embed.setColor(parseInt(color.replace('#', ''), 16));
 
       await channel.send({ embeds: [embed], components: buildPanelComponents(types) });
-      return interaction.reply({ content: `Ticket panel sent to ${channel}.`, flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: `Ticket panel sent to ${channel}.` });
     }
 
     if (sub === 'settings') {
@@ -167,7 +172,7 @@ module.exports = {
           { name: 'Require close reason', value: settings.closeRequireReason ? 'On' : 'Off', inline: true },
           { name: 'Naming format', value: `\`${settings.namingFormat}\``, inline: true },
         );
-      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      return interaction.reply({ embeds: [embed] });
     }
   },
 };

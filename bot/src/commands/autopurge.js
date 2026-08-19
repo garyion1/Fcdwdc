@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { schedulePurge, stopPurge } = require('../utils/autopurge');
 const { baseEmbed, COLORS } = require('../utils/embeds');
@@ -45,7 +45,7 @@ module.exports = {
     if (sub === 'disable') {
       const channel = interaction.options.getChannel('channel') ?? interaction.channel;
       if (!config.autopurge[channel.id]) {
-        return interaction.reply({ content: `Autopurge is not enabled in ${channel}.`, flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: `Autopurge is not enabled in ${channel}.` });
       }
       stopPurge(channel.id);
       delete config.autopurge[channel.id];
@@ -55,9 +55,9 @@ module.exports = {
 
     if (sub === 'status') {
       const entries = Object.entries(config.autopurge);
-      if (entries.length === 0) return interaction.reply({ content: 'Autopurge is not enabled in any channel.', flags: MessageFlags.Ephemeral });
+      if (entries.length === 0) return interaction.reply({ content: 'Autopurge is not enabled in any channel.' });
       const list = entries.map(([channelId, entry]) => `<#${channelId}> — every ${entry.intervalMinutes}m`).join('\n');
-      return interaction.reply({ embeds: [baseEmbed().setTitle('Autopurge Status').setDescription(list)], flags: MessageFlags.Ephemeral });
+      return interaction.reply({ embeds: [baseEmbed().setTitle('Autopurge Status').setDescription(list)] });
     }
   },
 };

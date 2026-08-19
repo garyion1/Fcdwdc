@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { getAdminGuildId, setAdminGuildId } = require('../utils/licenses');
 const { isBotOwner } = require('../utils/premium');
 const { baseEmbed, COLORS } = require('../utils/embeds');
@@ -19,20 +19,18 @@ module.exports = {
       return interaction.reply({
         content: adminGuildId
           ? `The current admin/control server ID is \`${adminGuildId}\`${adminGuildId === interaction.guildId ? ' (this server).' : '.'}`
-          : 'No admin/control server has been set yet — it will be set automatically the next time the bot joins a server.',
-        flags: MessageFlags.Ephemeral,
+          : 'No admin/control server has been set yet — it will be set automatically the next time the bot joins a server.'
       });
     }
 
     if (sub === 'set') {
       const owner = await isBotOwner(interaction.client, interaction.user.id);
       if (!owner) {
-        return interaction.reply({ content: 'Only the bot owner can move the admin/control server.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Only the bot owner can move the admin/control server.' });
       }
       setAdminGuildId(interaction.guildId);
       return interaction.reply({
-        embeds: [baseEmbed(COLORS.success).setDescription('This server is now the admin/control server for licensing.')],
-        flags: MessageFlags.Ephemeral,
+        embeds: [baseEmbed(COLORS.success).setDescription('This server is now the admin/control server for licensing.')]
       });
     }
   },

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { lockChannel } = require('../utils/channelLock');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
@@ -16,7 +16,7 @@ module.exports = {
 
     const result = await lockChannel(channel, interaction.user, reason);
     if (result.alreadyLocked) {
-      return interaction.reply({ content: `${channel} is already locked.`, flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: `${channel} is already locked.` });
     }
     return interaction.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`🔒 ${channel} is now locked.\nReason: ${reason}`)] });
   },

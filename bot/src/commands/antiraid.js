@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { isRaidActive, endRaidMode } = require('../utils/antiraid');
@@ -68,12 +68,12 @@ module.exports = {
           { name: 'Lockdown on raid', value: config.antiraid.lockdownOnRaid ? 'Yes' : 'No', inline: true },
           { name: 'Alert channel', value: config.antiraid.alertChannel ? `<#${config.antiraid.alertChannel}>` : 'Not set', inline: true },
         );
-      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      return interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'end') {
       const result = await endRaidMode(interaction.guild, interaction.user);
-      if (result.notActive) return interaction.reply({ content: 'Raid mode is not currently active.', flags: MessageFlags.Ephemeral });
+      if (result.notActive) return interaction.reply({ content: 'Raid mode is not currently active.' });
       return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription('✅ Raid mode ended and locked channels restored.')] });
     }
 
@@ -89,7 +89,7 @@ module.exports = {
           { name: 'Action on underage', value: config.antiraid.action, inline: true },
           { name: 'Lockdown on raid', value: config.antiraid.lockdownOnRaid ? 'Yes' : 'No', inline: true },
         );
-      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      return interaction.reply({ embeds: [embed] });
     }
   },
 };

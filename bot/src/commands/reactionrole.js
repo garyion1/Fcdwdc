@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
@@ -33,7 +33,7 @@ module.exports = {
       const role = interaction.options.getRole('role', true);
       const message = await interaction.channel.messages.fetch(messageId).catch(() => null);
       if (!message) {
-        return interaction.reply({ content: 'Could not find that message in this channel.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Could not find that message in this channel.' });
       }
       await message.react(emoji).catch(() => null);
 
@@ -42,8 +42,7 @@ module.exports = {
       saveConfig(interaction.guildId);
 
       return interaction.reply({
-        embeds: [baseEmbed(COLORS.success).setDescription(`Reacting with ${emoji} on that message now grants ${role}.`)],
-        flags: MessageFlags.Ephemeral,
+        embeds: [baseEmbed(COLORS.success).setDescription(`Reacting with ${emoji} on that message now grants ${role}.`)]
       });
     }
 
@@ -51,9 +50,9 @@ module.exports = {
       if (config.reactionRoles[messageId]?.[emoji]) {
         delete config.reactionRoles[messageId][emoji];
         saveConfig(interaction.guildId);
-        return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription('Reaction role binding removed.')], flags: MessageFlags.Ephemeral });
+        return interaction.reply({ embeds: [baseEmbed(COLORS.success).setDescription('Reaction role binding removed.')] });
       }
-      return interaction.reply({ content: 'No reaction role binding found for that message and emoji.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'No reaction role binding found for that message and emoji.' });
     }
   },
 };

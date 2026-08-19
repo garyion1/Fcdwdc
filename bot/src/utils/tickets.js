@@ -31,7 +31,7 @@ function buildPanelComponents(types) {
   const menu = new StringSelectMenuBuilder()
     .setCustomId('boatbot_open_ticket_select')
     .setPlaceholder('Select a ticket type...')
-    .addOptions(types.map((t) => ({ label: t.label, value: t.id, emoji: t.emoji || undefined })));
+    .addOptions(types.map((t) => ({ label: t.label, value: t.id, description: t.description || undefined, emoji: t.emoji || undefined })));
   return [new ActionRowBuilder().addComponents(menu)];
 }
 

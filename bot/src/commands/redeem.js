@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { redeemLicense } = require('../utils/licenses');
 const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
@@ -15,10 +15,10 @@ module.exports = {
     const result = redeemLicense(key, interaction.guildId, interaction.user.id);
 
     if (result.error === 'not_found') {
-      return interaction.reply({ content: 'That license key was not found. Double-check it and try again.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'That license key was not found. Double-check it and try again.' });
     }
     if (result.error === 'already_redeemed') {
-      return interaction.reply({ content: 'That license key has already been redeemed.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'That license key has already been redeemed.' });
     }
 
     const { license } = result;

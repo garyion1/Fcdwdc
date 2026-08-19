@@ -414,4 +414,33 @@ module.exports = [
       return message.channel.send(`Nickname updated for ${user.tag}.`);
     },
   },
+  {
+    name: 'dm',
+    category: CATEGORY,
+    description: 'DM every member of this server with a message. Usage: dm <message>',
+    permissions: [PermissionFlagsBits.Administrator],
+    async execute(message, args) {
+      const text = args.join(' ');
+      if (!text) return message.reply('Usage: `dm <message>`');
+
+      const notice = await message.channel.send('📨 Sending a DM to every member... this can take a while on larger servers.');
+      const members = await message.guild.members.fetch();
+
+      let sent = 0;
+      let failed = 0;
+      for (const member of members.values()) {
+        if (member.user.bot) continue;
+        try {
+          await member.send(text);
+          sent += 1;
+        } catch {
+          failed += 1;
+        }
+        // Spaced out to stay well clear of Discord's DM rate limits.
+        await new Promise((resolve) => setTimeout(resolve, 750));
+      }
+
+      return notice.edit(`📨 Done. Delivered to ${sent} member(s), failed for ${failed} (DMs off or blocked the bot).`);
+    },
+  },
 ];

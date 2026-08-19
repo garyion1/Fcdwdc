@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const { getConfig } = require('../config/database');
 const { closeTicket } = require('../utils/tickets');
 const { baseEmbed, COLORS } = require('../utils/embeds');
@@ -24,7 +24,7 @@ module.exports = {
     const ticket = config.tickets.openTickets[interaction.channel.id];
 
     if (!ticket) {
-      return interaction.reply({ content: 'This command can only be used inside a ticket channel.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'This command can only be used inside a ticket channel.' });
     }
 
     if (sub === 'close') {

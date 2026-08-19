@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { getConfig, saveConfig, defaultConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 
@@ -142,52 +142,49 @@ module.exports = {
       const value = interaction.options.getString('value');
 
       if (action === 'list') {
-        return interaction.reply({ content: `Current prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`, flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: `Current prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}` });
       }
 
       if (action === 'reset') {
         config.prefixes = defaultConfig().prefixes;
         saveConfig(interaction.guildId);
         return interaction.reply({
-          embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes reset to defaults: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)],
-          flags: MessageFlags.Ephemeral,
+          embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes reset to defaults: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)]
         });
       }
 
       if (action === 'set') {
-        if (!value) return interaction.reply({ content: 'Provide a space-separated list of prefixes, e.g. `! . , >>`.', flags: MessageFlags.Ephemeral });
+        if (!value) return interaction.reply({ content: 'Provide a space-separated list of prefixes, e.g. `! . , >>`.' });
         const proposed = [...new Set(value.trim().split(/\s+/))];
         const invalid = proposed.find((p) => p.length === 0 || p.length > 5);
         if (invalid !== undefined) {
-          return interaction.reply({ content: `\`${invalid}\` is not a valid prefix (must be 1-5 characters, no spaces).`, flags: MessageFlags.Ephemeral });
+          return interaction.reply({ content: `\`${invalid}\` is not a valid prefix (must be 1-5 characters, no spaces).` });
         }
         config.prefixes = proposed;
         saveConfig(interaction.guildId);
         return interaction.reply({
-          embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes replaced with: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)],
-          flags: MessageFlags.Ephemeral,
+          embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes replaced with: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)]
         });
       }
 
       if (!value || value.length > 5 || /\s/.test(value)) {
-        return interaction.reply({ content: 'Provide a short prefix with no spaces (max 5 characters).', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Provide a short prefix with no spaces (max 5 characters).' });
       }
 
       if (action === 'add') {
         if (config.prefixes.includes(value)) {
-          return interaction.reply({ content: `\`${value}\` is already a prefix.`, flags: MessageFlags.Ephemeral });
+          return interaction.reply({ content: `\`${value}\` is already a prefix.` });
         }
         config.prefixes.push(value);
       } else {
         if (config.prefixes.length <= 1) {
-          return interaction.reply({ content: 'You must keep at least one prefix.', flags: MessageFlags.Ephemeral });
+          return interaction.reply({ content: 'You must keep at least one prefix.' });
         }
         config.prefixes = config.prefixes.filter((p) => p !== value);
       }
       saveConfig(interaction.guildId);
       return interaction.reply({
-        embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes updated: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)],
-        flags: MessageFlags.Ephemeral,
+        embeds: [baseEmbed(COLORS.success).setDescription(`Prefixes updated: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`)]
       });
     }
 
@@ -199,16 +196,15 @@ module.exports = {
         return interaction.reply({
           content: config.automod.bannedWords.length
             ? `Banned words: ${config.automod.bannedWords.map((w) => `\`${w}\``).join(', ')}`
-            : 'No extra banned words configured (a baseline profanity filter still applies).',
-          flags: MessageFlags.Ephemeral,
+            : 'No extra banned words configured (a baseline profanity filter still applies).'
         });
       }
 
-      if (!word) return interaction.reply({ content: 'Provide a word.', flags: MessageFlags.Ephemeral });
+      if (!word) return interaction.reply({ content: 'Provide a word.' });
 
       if (action === 'add') {
         if (config.automod.bannedWords.includes(word)) {
-          return interaction.reply({ content: `\`${word}\` is already banned.`, flags: MessageFlags.Ephemeral });
+          return interaction.reply({ content: `\`${word}\` is already banned.` });
         }
         config.automod.bannedWords.push(word);
       } else {
@@ -220,8 +216,7 @@ module.exports = {
           baseEmbed(COLORS.success).setDescription(
             `Banned words updated: ${config.automod.bannedWords.map((w) => `\`${w}\``).join(', ') || 'None'}`,
           ),
-        ],
-        flags: MessageFlags.Ephemeral,
+        ]
       });
     }
   },

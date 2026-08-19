@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
 const { COLORS } = require('../utils/embeds');
 const { containsBadWord } = require('../utils/profanity');
 
@@ -23,7 +23,7 @@ module.exports = {
     const channel = interaction.options.getChannel('channel') ?? interaction.channel;
 
     if (containsBadWord([title, description, footer].filter(Boolean).join(' '), interaction.guildId)) {
-      return interaction.reply({ content: 'That embed contains a blocked word and was not sent.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'That embed contains a blocked word and was not sent.' });
     }
 
     const embed = new EmbedBuilder().setDescription(description).setColor(COLORS.primary);
@@ -33,6 +33,6 @@ module.exports = {
     if (color && /^#?[0-9a-f]{6}$/i.test(color)) embed.setColor(parseInt(color.replace('#', ''), 16));
 
     await channel.send({ embeds: [embed] });
-    await interaction.reply({ content: `Embed sent to ${channel}.`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: `Embed sent to ${channel}.` });
   },
 };
