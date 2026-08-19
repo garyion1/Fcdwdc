@@ -3,6 +3,14 @@ const { getConfig, saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { slugify, buildPanelComponents } = require('../utils/tickets');
 
+const TICKET_PRESETS = [
+  { label: 'General Support', emoji: '🛠️', description: 'Questions or help using the bot' },
+  { label: 'Buy', emoji: '💳', description: 'Purchase premium or ask about pricing' },
+  { label: 'Billing', emoji: '🧾', description: 'Payment or subscription issues' },
+  { label: 'Bug Report', emoji: '🐛', description: 'Something is broken or not working right' },
+  { label: 'Partnership', emoji: '🤝', description: 'Business inquiries or collaborations' },
+];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('ticketsetup')
@@ -36,12 +44,11 @@ module.exports = {
         .setDescription('Send the ticket panel to a channel.')
         .addChannelOption((o) => o.setName('channel').setDescription('Channel to send the panel to').setRequired(true).addChannelTypes(ChannelType.GuildText))
         .addStringOption((o) => o.setName('title').setDescription('Panel embed title'))
-        .addStringOption((o) => o.setName('description_1').setDescription('Panel description, line 1 (all 5 optional, use as many as you need)'))
-        .addStringOption((o) => o.setName('description_2').setDescription('Panel description, line 2'))
-        .addStringOption((o) => o.setName('description_3').setDescription('Panel description, line 3'))
-        .addStringOption((o) => o.setName('description_4').setDescription('Panel description, line 4'))
-        .addStringOption((o) => o.setName('description_5').setDescription('Panel description, line 5'))
+        .addStringOption((o) => o.setName('description').setDescription('Panel embed description'))
         .addStringOption((o) => o.setName('color').setDescription('Hex color, e.g. #5865F2')),
+    )
+    .addSubcommand((sub) =>
+      sub.setName('presets').setDescription('Add 5 ready-made ticket types (Support, Buy, Billing, Bug Report, Partnership) at once.'),
     )
     .addSubcommand((sub) =>
       sub
@@ -136,8 +143,7 @@ module.exports = {
       }
       const channel = interaction.options.getChannel('channel', true);
       const title = interaction.options.getString('title') ?? 'Support Tickets';
-      const descriptionLines = [1, 2, 3, 4, 5].map((n) => interaction.options.getString(`description_${n}`)).filter(Boolean);
-      const description = descriptionLines.length > 0 ? descriptionLines.join('\n') : 'Select a category below to open a ticket.';
+      const description = interaction.options.getString('description') ?? 'Select a category below to open a ticket.';
       const color = interaction.options.getString('color');
 
       const embed = baseEmbed().setTitle(title).setDescription(description);
@@ -145,6 +151,52 @@ module.exports = {
 
       await channel.send({ embeds: [embed], components: buildPanelComponents(types) });
       return interaction.reply({ content: `Ticket panel sent to ${channel}.` });
+    }
+
+    if (sub === 'presets') {
+      const existingLabels = new Set(Object.values(config.tickets.types).map((t) => t.label.toLowerCase()));
+      const toAdd = TICKET_PRESETS.filter((p) => !existingLabels.has(p.label.toLowerCase()));
+
+      if (toAdd.length === 0) {
+        return interaction.reply({ content: 'All 5 preset ticket types already exist on this server.' });
+      }
+      if (Object.keys(config.tickets.types).length + toAdd.length > 25) {
+        return interaction.reply({
+          content: `Adding these would exceed the 25 ticket type limit (you currently have ${Object.keys(config.tickets.types).length}).`,
+        });
+      }
+
+      await interaction.deferReply();
+
+      const added = [];
+      for (const preset of toAdd) {
+        let id = slugify(preset.label);
+        let suffix = 2;
+        while (config.tickets.types[id]) {
+          id = `${slugify(preset.label)}-${suffix}`;
+          suffix += 1;
+        }
+        const category = await interaction.guild.channels.create({ name: preset.label, type: ChannelType.GuildCategory });
+        config.tickets.types[id] = {
+          id,
+          label: preset.label,
+          description: preset.description,
+          category: category.id,
+          supportRoleId: null,
+          emoji: preset.emoji,
+          welcomeMessage: null,
+        };
+        added.push(preset.label);
+      }
+      saveConfig(interaction.guildId);
+
+      return interaction.editReply({
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            `Added ${added.length} ticket type(s): ${added.map((l) => `**${l}**`).join(', ')} — each with its own auto-created category. Send a panel that includes them with \`/ticketsetup panel\`.`,
+          ),
+        ],
+      });
     }
 
     if (sub === 'settings') {
