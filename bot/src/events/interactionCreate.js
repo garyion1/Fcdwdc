@@ -5,7 +5,7 @@ const { isBotUsable } = require('../utils/premium');
 
 // These stay usable even without an active license — they're how a server
 // gets premium in the first place, or gets help/support while it doesn't.
-const PREMIUM_EXEMPT_COMMANDS = new Set(['help', 'premium', 'redeem', 'support', 'license', 'adminserver', 'invite', 'discord']);
+const PREMIUM_EXEMPT_COMMANDS = new Set(['help', 'premium', 'redeem', 'support', 'license', 'mylicense', 'adminserver', 'invite', 'discord']);
 const NO_LICENSE_MESSAGE =
   'This server does not have an active Boat Bot license. Run `/redeem <key>` to activate premium, or `/premium` to check status.';
 

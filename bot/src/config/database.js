@@ -113,6 +113,7 @@ function defaultConfig() {
       tier: null,
       licenseKey: null,
       expiresAt: null,
+      expiryWarned: false,
     },
     antiraid: {
       enabled: false,

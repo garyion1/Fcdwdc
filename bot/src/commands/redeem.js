@@ -23,7 +23,7 @@ module.exports = {
 
     const { license } = result;
     const config = getConfig(interaction.guildId);
-    config.premium = { active: true, tier: license.tier, licenseKey: license.key, expiresAt: license.expiresAt };
+    config.premium = { active: true, tier: license.tier, licenseKey: license.key, expiresAt: license.expiresAt, expiryWarned: false };
     saveConfig(interaction.guildId);
 
     const embed = baseEmbed(COLORS.success)

@@ -16,7 +16,8 @@ module.exports = {
         .setRequired(true)
         .addChoices({ name: 'Monthly', value: 'monthly' }, { name: 'Lifetime', value: 'lifetime' }),
     )
-    .addIntegerOption((o) => o.setName('duration_days').setDescription('Days of access for a monthly key (default 30)').setMinValue(1).setMaxValue(3650)),
+    .addIntegerOption((o) => o.setName('duration_days').setDescription('Days of access for a monthly key (default 30)').setMinValue(1).setMaxValue(3650))
+    .addNumberOption((o) => o.setName('price').setDescription('What this key was sold for, for your own records (optional)').setMinValue(0)),
 
   async execute(interaction) {
     const blocked = requireAdminGuild(interaction);
@@ -25,7 +26,8 @@ module.exports = {
     const user = interaction.options.getUser('user', true);
     const tier = interaction.options.getString('tier', true);
     const durationDays = tier === 'monthly' ? interaction.options.getInteger('duration_days') ?? 30 : null;
-    const key = createLicense(tier, durationDays, interaction.user.id);
+    const price = interaction.options.getNumber('price');
+    const key = createLicense(tier, durationDays, interaction.user.id, price);
 
     const dmEmbed = baseEmbed(COLORS.success)
       .setTitle('🔑 Your Boat Bot license key')

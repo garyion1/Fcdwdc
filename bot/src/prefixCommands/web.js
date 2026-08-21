@@ -1,5 +1,6 @@
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { fetchJson, USER_AGENT } = require('../utils/http');
+const { searchWeb } = require('../utils/webSearch');
 
 const CATEGORY = 'Web';
 
@@ -148,27 +149,42 @@ module.exports = [
     name: 'google',
     aliases: ['search'],
     category: CATEGORY,
-    description: 'Search the web. Usage: google <query>',
+    description: 'Search the web. Usage: google <query> (any number of words)',
     async execute(message, args) {
       const query = args.join(' ');
       if (!query) return message.reply('Usage: `google <query>`');
 
       const link = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+      const embed = baseEmbed().setTitle(`🔎 ${query}`.slice(0, 256)).setURL(link);
 
-      // Google has no free search API, so this answers from DuckDuckGo's
-      // instant-answer endpoint and always offers the search link as a fallback.
+      // Google has no free search API. Real results (any number of words) come
+      // from scraping DuckDuckGo's HTML results page; its narrow instant-answer
+      // API (single facts, conversions, named entities) is a second attempt if
+      // that scrape turns up nothing, since it sometimes covers what the result
+      // page doesn't score highly.
+      const results = await searchWeb(query, 5).catch(() => []);
+
+      if (results.length > 0) {
+        embed.setDescription(
+          results
+            .map((result, index) => `**${index + 1}. [${result.title}](${result.url})**\n${result.snippet}`)
+            .join('\n\n')
+            .slice(0, 4000),
+        );
+        return message.channel.send({ embeds: [embed] });
+      }
+
       const data = await fetchJson(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
       const answer = data?.AbstractText || data?.Answer || data?.Definition || '';
       const related = (data?.RelatedTopics ?? []).map((topic) => topic.Text).filter(Boolean).slice(0, 3);
 
-      const embed = baseEmbed().setTitle(`🔎 ${query}`).setURL(link);
       if (answer) {
         embed.setDescription(answer.slice(0, 2000));
         if (data.AbstractURL) embed.addFields({ name: 'Source', value: data.AbstractURL });
       } else if (related.length > 0) {
         embed.setDescription(related.map((text) => `• ${text}`).join('\n').slice(0, 2000));
       } else {
-        embed.setDescription(`No instant answer for that one.\n[Open the search on Google](${link})`);
+        embed.setDescription(`No results came back for that.\n[Open the search on Google](${link})`);
       }
 
       return message.channel.send({ embeds: [embed] });

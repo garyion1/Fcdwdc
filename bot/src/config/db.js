@@ -33,6 +33,18 @@ db.exec(`
     redeemed_at INTEGER,
     expires_at INTEGER
   );
+`);
+
+// SQLite has no "ADD COLUMN IF NOT EXISTS" — added after the table above
+// shipped, so existing databases need this guarded ALTER TABLE instead of a
+// CREATE TABLE clause.
+try {
+  db.exec('ALTER TABLE licenses ADD COLUMN price REAL');
+} catch (error) {
+  if (!/duplicate column/i.test(error.message)) throw error;
+}
+
+db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_licenses_guild_id ON licenses(guild_id);
 `);

@@ -17,8 +17,8 @@ function generateLicenseKey() {
 }
 
 const insertLicenseStmt = db.prepare(`
-  INSERT INTO licenses (key, tier, duration_days, created_at, created_by, redeemed, redeemed_by, guild_id, redeemed_at, expires_at)
-  VALUES (?, ?, ?, ?, ?, 0, NULL, NULL, NULL, NULL)
+  INSERT INTO licenses (key, tier, duration_days, created_at, created_by, redeemed, redeemed_by, guild_id, redeemed_at, expires_at, price)
+  VALUES (?, ?, ?, ?, ?, 0, NULL, NULL, NULL, NULL, ?)
 `);
 const getLicenseRowStmt = db.prepare('SELECT * FROM licenses WHERE key = ?');
 const redeemLicenseStmt = db.prepare(
@@ -27,6 +27,7 @@ const redeemLicenseStmt = db.prepare(
 const revokeLicenseStmt = db.prepare(
   'UPDATE licenses SET redeemed = 0, redeemed_by = NULL, guild_id = NULL, redeemed_at = NULL, expires_at = NULL WHERE key = ?',
 );
+const extendLicenseStmt = db.prepare('UPDATE licenses SET expires_at = ? WHERE key = ?');
 const listLicensesStmt = db.prepare('SELECT * FROM licenses ORDER BY created_at DESC');
 
 function rowToLicense(row) {
@@ -41,14 +42,31 @@ function rowToLicense(row) {
     guildId: row.guild_id,
     redeemedAt: row.redeemed_at,
     expiresAt: row.expires_at,
+    price: row.price ?? null,
   };
 }
 
-function createLicense(tier, durationDays, createdBy) {
+function createLicense(tier, durationDays, createdBy, price) {
   let key = generateLicenseKey();
   while (getLicenseRowStmt.get(key)) key = generateLicenseKey();
-  insertLicenseStmt.run(key, tier, durationDays ?? null, Date.now(), createdBy);
+  insertLicenseStmt.run(key, tier, durationDays ?? null, Date.now(), createdBy, price ?? null);
   return key;
+}
+
+// Adds days to a redeemed, non-lifetime license — extends from its current
+// expiry if it hasn't lapsed yet, or from now if it already has, so a late
+// renewal doesn't lose the days between expiry and payment.
+function extendLicense(key, days) {
+  const normalizedKey = key.trim().toUpperCase();
+  const license = rowToLicense(getLicenseRowStmt.get(normalizedKey));
+  if (!license) return { error: 'not_found' };
+  if (!license.redeemed) return { error: 'not_redeemed' };
+  if (!license.durationDays) return { error: 'lifetime' };
+
+  const base = license.expiresAt && license.expiresAt > Date.now() ? license.expiresAt : Date.now();
+  const expiresAt = base + days * 86400000;
+  extendLicenseStmt.run(expiresAt, normalizedKey);
+  return { expiresAt, guildId: license.guildId };
 }
 
 function getLicense(key) {
@@ -90,6 +108,11 @@ function hasActiveLicenseForUser(userId) {
   return listUserLicensesStmt.all(userId).some((row) => !row.expires_at || row.expires_at > now);
 }
 
+// Every license a person personally holds, across every server, for `/mylicense`.
+function listLicensesForUser(userId) {
+  return listUserLicensesStmt.all(userId).map((row) => ({ key: row.key, ...rowToLicense(row) }));
+}
+
 module.exports = {
   getAdminGuildId,
   setAdminGuildId,
@@ -97,6 +120,8 @@ module.exports = {
   getLicense,
   redeemLicense,
   revokeLicense,
+  extendLicense,
   listLicenses,
+  listLicensesForUser,
   hasActiveLicenseForUser,
 };
