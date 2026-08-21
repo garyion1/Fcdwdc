@@ -86,6 +86,19 @@ module.exports = [
     },
   },
   {
+    name: 'leaderboard',
+    aliases: ['lb', 'top'],
+    category: CATEGORY,
+    description: 'Show the XP leaderboard.',
+    async execute(message, args, config) {
+      if (!config.leveling.enabled) return message.reply('Leveling is disabled here — an admin can turn it on with `levels on`.');
+      const top = leaderboard(message.guild.id, 10);
+      if (top.length === 0) return message.channel.send('Nobody has earned any XP yet.');
+      const lines = top.map((entry, index) => `**${index + 1}.** <@${entry.userId}> — level ${entry.level} (${entry.xp} XP)`);
+      return message.channel.send({ embeds: [baseEmbed().setTitle(`🏆 ${message.guild.name} leaderboard`).setDescription(lines.join('\n'))] });
+    },
+  },
+  {
     name: 'levels',
     aliases: ['leveling'],
     category: CATEGORY,

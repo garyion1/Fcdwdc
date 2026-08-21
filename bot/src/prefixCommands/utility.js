@@ -42,7 +42,7 @@ module.exports = [
   },
   {
     name: 'userinfo',
-    aliases: ['whois'],
+    aliases: ['whois', 'user'],
     category: CATEGORY,
     description: 'Show information about a member. Usage: userinfo [@user]',
     async execute(message, args) {
@@ -66,7 +66,7 @@ module.exports = [
   },
   {
     name: 'serverinfo',
-    aliases: ['guildinfo'],
+    aliases: ['guildinfo', 'server'],
     category: CATEGORY,
     description: 'Show information about this server.',
     async execute(message) {
@@ -87,6 +87,7 @@ module.exports = [
   },
   {
     name: 'roleinfo',
+    aliases: ['role'],
     category: CATEGORY,
     description: 'Show information about a role. Usage: roleinfo <@role|name>',
     async execute(message, args) {

@@ -143,4 +143,7 @@ module.exports = {
   },
 
   scheduleGiveawayEnd,
+  endGiveaway,
+  pickWinners,
+  parseDuration,
 };

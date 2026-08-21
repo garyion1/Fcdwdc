@@ -109,25 +109,76 @@ module.exports = [
     },
   },
   {
-    name: 'hug',
+    name: 'dice',
     category: CATEGORY,
-    description: 'Hug someone with a gif. Usage: hug @user',
+    description: 'Roll dice. Usage: dice [count] [sides] (default 1d6)',
     async execute(message, args) {
-      const user = await resolveUser(message, args[0]);
-      if (!user) return message.reply('Usage: `hug @user`');
-      const embed = baseEmbed(COLORS.primary).setDescription(`🤗 ${message.author} hugs ${user}!`);
-      return message.channel.send({ embeds: [embed] });
+      const count = Math.min(Math.max(parseInt(args[0], 10) || 1, 1), 25);
+      const sides = Math.min(Math.max(parseInt(args[1], 10) || 6, 2), 1000);
+      const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * sides));
+      const total = rolls.reduce((sum, r) => sum + r, 0);
+      const detail = count > 1 ? `\n${rolls.join(' + ')} = **${total}**` : '';
+      return message.channel.send({
+        embeds: [baseEmbed().setTitle('🎲 Dice').setDescription(`Rolling **${count}d${sides}**${detail || `\nYou rolled **${total}**`}`)],
+      });
     },
   },
   {
-    name: 'kiss',
+    name: 'choose',
+    aliases: ['pick'],
     category: CATEGORY,
-    description: 'Kiss someone with a gif. Usage: kiss @user',
+    description: 'Let the bot pick for you. Usage: choose <option> | <option> | ...',
     async execute(message, args) {
-      const user = await resolveUser(message, args[0]);
-      if (!user) return message.reply('Usage: `kiss @user`');
-      const embed = baseEmbed(COLORS.primary).setDescription(`💋 ${message.author} kisses ${user}!`);
-      return message.channel.send({ embeds: [embed] });
+      const options = args.join(' ').split(/\s*[|,]\s*/).map((o) => o.trim()).filter(Boolean);
+      if (options.length < 2) return message.reply('Give me at least two options: `choose pizza | pasta | sushi`');
+      const picked = options[Math.floor(Math.random() * options.length)];
+      return message.channel.send({ embeds: [baseEmbed().setTitle('🤔 I choose...').setDescription(`**${picked}**`)] });
+    },
+  },
+  {
+    name: 'rate',
+    category: CATEGORY,
+    description: 'Rate anything out of 10. Usage: rate <thing>',
+    async execute(message, args) {
+      const thing = args.join(' ');
+      if (!thing) return message.reply('Usage: `rate <thing>`');
+      // Hash the input so the same thing always gets the same rating.
+      let hash = 0;
+      for (const char of thing.toLowerCase()) hash = (hash * 31 + char.charCodeAt(0)) % 1000003;
+      const score = hash % 11;
+      return message.channel.send({
+        embeds: [baseEmbed().setDescription(`I rate **${thing}** a **${score}/10**.`)],
+      });
+    },
+  },
+  {
+    name: 'ship',
+    category: CATEGORY,
+    description: 'Ship two people. Usage: ship @user1 @user2',
+    async execute(message, args) {
+      const first = (await resolveUser(message, args[0])) ?? message.author;
+      const mentioned = [...message.mentions.users.values()];
+      const second = mentioned[1] ?? (await resolveUser(message, args[1])) ?? message.author;
+
+      if (first.id === second.id) return message.reply('Usage: `ship @user1 @user2` — name two different people.');
+
+      // Same pair always gets the same score, whichever order they are given in.
+      const key = [first.id, second.id].sort().join('-');
+      let hash = 0;
+      for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) % 1000003;
+      const score = hash % 101;
+
+      const filled = Math.round(score / 10);
+      const bar = `${'💗'.repeat(filled)}${'🖤'.repeat(10 - filled)}`;
+      const name = `${first.username.slice(0, Math.ceil(first.username.length / 2))}${second.username.slice(Math.floor(second.username.length / 2))}`;
+
+      return message.channel.send({
+        embeds: [
+          baseEmbed(COLORS.primary)
+            .setTitle('💘 Ship')
+            .setDescription(`**${first.username}** 💕 **${second.username}**\n\n${bar}\n**${score}%** — *${name}*`),
+        ],
+      });
     },
   },
 ];
