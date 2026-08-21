@@ -5,6 +5,30 @@ const CATEGORY = 'Web';
 
 const UNREACHABLE = 'That service did not respond just now — give it a moment and try again.';
 
+async function runTranslation(message, text, target) {
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(target)}&dt=t&q=${encodeURIComponent(text)}`;
+  const data = await fetchJson(url);
+
+  // Response shape is [[[translated, original, ...], ...], ..., detectedLang]
+  const segments = Array.isArray(data?.[0]) ? data[0] : null;
+  if (!segments) return message.reply(UNREACHABLE);
+
+  const translated = segments.map((segment) => segment?.[0] ?? '').join('');
+  if (!translated) return message.reply('I could not translate that.');
+
+  const detected = typeof data[2] === 'string' ? data[2] : 'auto';
+  return message.channel.send({
+    embeds: [
+      baseEmbed()
+        .setTitle('🌍 Translation')
+        .addFields(
+          { name: `From (${detected})`, value: text.slice(0, 1024) },
+          { name: `To (${target})`, value: translated.slice(0, 1024) },
+        ),
+    ],
+  });
+}
+
 module.exports = [
   {
     name: 'weather',
@@ -43,34 +67,24 @@ module.exports = [
     name: 'translate',
     aliases: ['tr'],
     category: CATEGORY,
-    description: 'Translate text. Usage: translate <language> <text> e.g. translate es hello',
+    description: 'Translate a message. Usage: reply to a message with `tr` (or `tr <language>`) — or `tr <language> <text>` on its own.',
     async execute(message, args) {
+      const replyId = message.reference?.messageId;
+      const repliedMessage = replyId ? await message.channel.messages.fetch(replyId).catch(() => null) : null;
+
+      if (repliedMessage) {
+        if (!repliedMessage.content) return message.reply('That message has no text to translate.');
+        const langArg = args[0]?.toLowerCase();
+        const target = langArg && /^[a-z]{2}(-[a-z]{2})?$/i.test(langArg) ? langArg : 'en';
+        return runTranslation(message, repliedMessage.content, target);
+      }
+
       const target = args[0]?.toLowerCase();
       const text = args.slice(1).join(' ');
-      if (!target || !text) return message.reply('Usage: `translate <language> <text>` e.g. `translate es hello there`');
-      if (!/^[a-z]{2}(-[a-z]{2})?$/i.test(target)) return message.reply('Give a language code like `es`, `fr`, `de`, `ja`, or `pt-br`.');
-
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(target)}&dt=t&q=${encodeURIComponent(text)}`;
-      const data = await fetchJson(url);
-
-      // Response shape is [[[translated, original, ...], ...], ..., detectedLang]
-      const segments = Array.isArray(data?.[0]) ? data[0] : null;
-      if (!segments) return message.reply(UNREACHABLE);
-
-      const translated = segments.map((segment) => segment?.[0] ?? '').join('');
-      if (!translated) return message.reply('I could not translate that.');
-
-      const detected = typeof data[2] === 'string' ? data[2] : 'auto';
-      return message.channel.send({
-        embeds: [
-          baseEmbed()
-            .setTitle('🌍 Translation')
-            .addFields(
-              { name: `From (${detected})`, value: text.slice(0, 1024) },
-              { name: `To (${target})`, value: translated.slice(0, 1024) },
-            ),
-        ],
-      });
+      if (!target || !text || !/^[a-z]{2}(-[a-z]{2})?$/i.test(target)) {
+        return message.reply('Reply to a message with `tr` (or `tr <language>`) to translate it — or use `tr <language> <text>` on its own.');
+      }
+      return runTranslation(message, text, target);
     },
   },
   {
