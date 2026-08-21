@@ -114,6 +114,7 @@ function defaultConfig() {
       licenseKey: null,
       expiresAt: null,
       expiryWarned: false,
+      graceStartedAt: null,
     },
     antiraid: {
       enabled: false,

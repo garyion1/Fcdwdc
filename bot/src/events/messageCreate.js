@@ -5,6 +5,7 @@ const { isBotUsable } = require('../utils/premium');
 const { hasCommandPermissions } = require('../utils/fakePermissions');
 const { handleMessageXp } = require('../utils/leveling');
 const { handleBumpSuccess, DISBOARD_BOT_ID } = require('../utils/bumpReminder');
+const { flairMessage } = require('../utils/flair');
 
 async function handleAutoresponders(message, config) {
   const content = message.content.toLowerCase();
@@ -119,17 +120,18 @@ module.exports = {
 
     const command = client.prefixCommands.get(commandName);
     if (command) {
+      const flaired = flairMessage(message);
       if (!usable && !PREMIUM_EXEMPT_PREFIX_COMMANDS.has(commandName)) {
-        return message.reply(NO_LICENSE_MESSAGE).catch(() => {});
+        return flaired.reply(NO_LICENSE_MESSAGE).catch(() => {});
       }
       if (command.permissions && !hasCommandPermissions(message.member, command.permissions)) {
-        return message.reply("You don't have permission to use that command.").catch(() => {});
+        return flaired.reply("You don't have permission to use that command.").catch(() => {});
       }
       try {
-        await command.execute(message, args, config, client);
+        await command.execute(flaired, args, config, client);
       } catch (error) {
         console.error(`Error executing prefix command ${commandName}:`, error);
-        await message.reply('Something went wrong while running that command.').catch(() => {});
+        await flaired.reply('Something went wrong while running that command.').catch(() => {});
       }
       return;
     }

@@ -36,17 +36,33 @@ db.exec(`
 `);
 
 // SQLite has no "ADD COLUMN IF NOT EXISTS" — added after the table above
-// shipped, so existing databases need this guarded ALTER TABLE instead of a
-// CREATE TABLE clause.
-try {
-  db.exec('ALTER TABLE licenses ADD COLUMN price REAL');
-} catch (error) {
-  if (!/duplicate column/i.test(error.message)) throw error;
+// shipped, so existing databases need these guarded ALTER TABLEs instead of
+// a CREATE TABLE clause.
+for (const alter of ['ALTER TABLE licenses ADD COLUMN price REAL', 'ALTER TABLE licenses ADD COLUMN seats INTEGER NOT NULL DEFAULT 1']) {
+  try {
+    db.exec(alter);
+  } catch (error) {
+    if (!/duplicate column/i.test(error.message)) throw error;
+  }
 }
 
 db.exec(`
-
   CREATE INDEX IF NOT EXISTS idx_licenses_guild_id ON licenses(guild_id);
+
+  -- Each row is one server a multi-seat license is currently active in.
+  -- Single-seat licenses (the common case) still get exactly one row here —
+  -- this table is the single source of truth for "where is this key active",
+  -- while licenses.guild_id/redeemed_by/redeemed_at mirror the most recent
+  -- seat for backward compatibility with anything reading those directly.
+  CREATE TABLE IF NOT EXISTS license_seats (
+    license_key TEXT NOT NULL,
+    guild_id TEXT NOT NULL,
+    redeemed_by TEXT NOT NULL,
+    redeemed_at INTEGER NOT NULL,
+    PRIMARY KEY (license_key, guild_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_license_seats_key ON license_seats(license_key);
 `);
 
 function migrateLegacyGuildConfigs() {

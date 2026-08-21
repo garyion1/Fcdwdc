@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { createLicense } = require('../utils/licenses');
 const { requireAdminGuild } = require('./license');
 const { baseEmbed, COLORS } = require('../utils/embeds');
+const { logLicenseEvent } = require('../utils/licenseLog');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,6 +18,7 @@ module.exports = {
         .addChoices({ name: 'Monthly', value: 'monthly' }, { name: 'Lifetime', value: 'lifetime' }),
     )
     .addIntegerOption((o) => o.setName('duration_days').setDescription('Days of access for a monthly key (default 30)').setMinValue(1).setMaxValue(3650))
+    .addIntegerOption((o) => o.setName('seats').setDescription('How many servers this one key can be active in at once (default 1)').setMinValue(1).setMaxValue(100))
     .addNumberOption((o) => o.setName('price').setDescription('What this key was sold for, for your own records (optional)').setMinValue(0)),
 
   async execute(interaction) {
@@ -26,8 +28,9 @@ module.exports = {
     const user = interaction.options.getUser('user', true);
     const tier = interaction.options.getString('tier', true);
     const durationDays = tier === 'monthly' ? interaction.options.getInteger('duration_days') ?? 30 : null;
+    const seats = interaction.options.getInteger('seats') ?? 1;
     const price = interaction.options.getNumber('price');
-    const key = createLicense(tier, durationDays, interaction.user.id, price);
+    const key = createLicense(tier, durationDays, interaction.user.id, price, seats);
 
     const dmEmbed = baseEmbed(COLORS.success)
       .setTitle('🔑 Your Boat Bot license key')
@@ -52,6 +55,9 @@ module.exports = {
         { name: 'Sent to', value: `${user}`, inline: true },
         { name: 'DM delivered', value: dmSent ? 'Yes' : 'No — their DMs are closed, send it to them manually', inline: true },
       );
+    if (seats > 1) embed.addFields({ name: 'Seats', value: `${seats}`, inline: true });
+
+    await logLicenseEvent(interaction.client, `🎁 \`${key}\` generated and given to **${user.tag}** by **${interaction.user.tag}** (${tier}, ${seats} seat(s)).`);
     return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   },
 };
