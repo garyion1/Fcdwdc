@@ -1,4 +1,4 @@
-const { ChannelType } = require('discord.js');
+const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const { baseEmbed } = require('../utils/embeds');
 const { resolveUser } = require('../utils/args');
 const { saveConfig } = require('../config/database');
@@ -156,8 +156,39 @@ module.exports = [
   {
     name: 'prefix',
     category: CATEGORY,
-    description: 'Show the prefixes this server uses.',
+    description: 'Show or change the prefixes. Usage: prefix | prefix set <symbol> | prefix add <symbol> | prefix remove <symbol> | prefix reset',
     async execute(message, args, config) {
+      const action = args[0]?.toLowerCase();
+      const symbol = args[1];
+
+      if (action && ['set', 'add', 'remove', 'reset'].includes(action)) {
+        if (!message.member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+          return message.reply("You don't have permission to change the prefix.");
+        }
+
+        if (action === 'reset') {
+          config.prefixes = ['!', '.', '?', ',', '$'];
+          saveConfig(message.guild.id);
+          return message.channel.send(`Prefixes reset: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`);
+        }
+
+        if (!symbol || symbol.length > 3) return message.reply(`Usage: \`prefix ${action} <symbol>\` (up to 3 characters)`);
+
+        if (action === 'set') {
+          config.prefixes = [symbol];
+        } else if (action === 'add') {
+          if (config.prefixes.includes(symbol)) return message.reply('That prefix is already in use.');
+          config.prefixes.push(symbol);
+        } else {
+          if (!config.prefixes.includes(symbol)) return message.reply('That prefix is not in use.');
+          if (config.prefixes.length === 1) return message.reply('You cannot remove the last prefix.');
+          config.prefixes = config.prefixes.filter((p) => p !== symbol);
+        }
+
+        saveConfig(message.guild.id);
+        return message.channel.send(`Prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')} — e.g. \`${config.prefixes[0]}ban\``);
+      }
+
       return message.channel.send(`Prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')} — e.g. \`${config.prefixes[0]}ban\``);
     },
   },

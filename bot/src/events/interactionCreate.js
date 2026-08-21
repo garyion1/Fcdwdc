@@ -36,6 +36,22 @@ module.exports = {
       if (!isBotUsable(interaction.guild?.id)) {
         return interaction.reply({ content: NO_LICENSE_MESSAGE, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
+      if (interaction.customId.startsWith('boatbot_buttonrole:')) {
+        const roleId = interaction.customId.split(':')[1];
+        const role = interaction.guild.roles.cache.get(roleId);
+        if (!role) return interaction.reply({ content: 'That role no longer exists.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        if (!role.editable) {
+          return interaction.reply({ content: 'I cannot assign that role — my role needs to be above it.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+
+        const has = interaction.member.roles.cache.has(roleId);
+        if (has) await interaction.member.roles.remove(role, 'Button role').catch(() => {});
+        else await interaction.member.roles.add(role, 'Button role').catch(() => {});
+
+        return interaction
+          .reply({ content: has ? `Removed ${role}.` : `Gave you ${role}.`, flags: MessageFlags.Ephemeral })
+          .catch(() => {});
+      }
       if (interaction.customId.startsWith('boatbot_open_ticket:')) {
         const typeId = interaction.customId.split(':')[1];
         return openTicket(interaction, typeId);

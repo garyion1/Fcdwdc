@@ -2,6 +2,26 @@ const { PermissionFlagsBits } = require('discord.js');
 const { getConfig, saveConfig } = require('../config/database');
 const { logAction } = require('../utils/logger');
 const { isBotUsable } = require('../utils/premium');
+const { hasCommandPermissions } = require('../utils/fakePermissions');
+const { handleMessageXp } = require('../utils/leveling');
+const { handleBumpSuccess, DISBOARD_BOT_ID } = require('../utils/bumpReminder');
+
+async function handleAutoresponders(message, config) {
+  const content = message.content.toLowerCase();
+
+  for (const [trigger, entry] of Object.entries(config.autoresponders)) {
+    const matches = entry.exclusive ? content.trim() === trigger : content.includes(trigger);
+    if (!matches) continue;
+    if (entry.roleIds?.length > 0 && !entry.roleIds.some((id) => message.member?.roles.cache.has(id))) continue;
+
+    const response = entry.response
+      .replace(/{user}/g, `<@${message.author.id}>`)
+      .replace(/{user\.name}/g, message.author.username)
+      .replace(/{server}/g, message.guild.name);
+    await message.channel.send(response).catch(() => {});
+    return;
+  }
+}
 
 // Prefix commands that stay usable even without an active license.
 const PREMIUM_EXEMPT_PREFIX_COMMANDS = new Set(['commands', 'cmds', 'prefixhelp']);
@@ -31,7 +51,14 @@ function matchPrefix(content, prefixes) {
 module.exports = {
   name: 'messageCreate',
   async execute(message, client) {
-    if (message.author.bot || !message.guild) return;
+    if (!message.guild) return;
+
+    if (message.author.bot) {
+      if (message.author.id === DISBOARD_BOT_ID && isBotUsable(message.guild.id)) {
+        await handleBumpSuccess(message).catch(() => {});
+      }
+      return;
+    }
 
     const config = getConfig(message.guild.id);
     const usable = isBotUsable(message.guild.id);
@@ -73,18 +100,29 @@ module.exports = {
     }
 
     const prefix = matchPrefix(message.content, config.prefixes);
-    if (!prefix) return;
+
+    if (!prefix) {
+      if (!usable) return;
+      await handleAutoresponders(message, config).catch(() => {});
+      await handleMessageXp(message).catch((error) => console.error('Leveling error:', error));
+      return;
+    }
 
     const args = message.content.slice(prefix.length).trim().split(/\s+/);
-    const commandName = args.shift()?.toLowerCase();
+    let commandName = args.shift()?.toLowerCase();
     if (!commandName) return;
+
+    // Server-defined aliases resolve to a real command before lookup.
+    if (!client.prefixCommands.has(commandName) && config.aliases[commandName]) {
+      commandName = config.aliases[commandName];
+    }
 
     const command = client.prefixCommands.get(commandName);
     if (command) {
       if (!usable && !PREMIUM_EXEMPT_PREFIX_COMMANDS.has(commandName)) {
         return message.reply(NO_LICENSE_MESSAGE).catch(() => {});
       }
-      if (command.permissions && !message.member?.permissions.has(command.permissions)) {
+      if (command.permissions && !hasCommandPermissions(message.member, command.permissions)) {
         return message.reply("You don't have permission to use that command.").catch(() => {});
       }
       try {

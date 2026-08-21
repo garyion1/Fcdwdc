@@ -6,6 +6,10 @@ const { schedulePurge } = require('../utils/autopurge');
 const { isBotUsable } = require('../utils/premium');
 const { INVITER_GRACE_PERIOD_MS, enforceInviterLicense } = require('./guildCreate');
 const { scheduleTempBan, liftTempBan } = require('../utils/tempban');
+const { scheduleTimer } = require('../utils/timers');
+const { startCounterRefresh } = require('../utils/counters');
+const { pruneTempChannels } = require('../utils/voicemaster');
+const { restoreBumpReminders } = require('../utils/bumpReminder');
 
 const STATUS_ROTATION_MS = 15000;
 
@@ -61,7 +65,14 @@ module.exports = {
           scheduleTempBan(client, guildId, userId, remaining);
         }
       }
+      for (const [channelId, timer] of Object.entries(config.timers ?? {})) {
+        scheduleTimer(client, guildId, channelId, timer.intervalMinutes);
+      }
     }
+
+    startCounterRefresh(client);
+    restoreBumpReminders(client);
+    pruneTempChannels(client).catch((error) => console.error('VoiceMaster prune error:', error));
 
     // The inviter-license grace period is only ever scheduled with an
     // in-memory setTimeout, which a process restart silently wipes out. Redo

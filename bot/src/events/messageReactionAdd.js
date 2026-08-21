@@ -1,5 +1,6 @@
 const { getConfig } = require('../config/database');
 const { isBotUsable } = require('../utils/premium');
+const { syncStarboard } = require('../utils/starboard');
 
 module.exports = {
   name: 'messageReactionAdd',
@@ -14,6 +15,8 @@ module.exports = {
     }
     if (!reaction.message.guild) return;
     if (!isBotUsable(reaction.message.guild.id)) return;
+
+    await syncStarboard(reaction).catch((error) => console.error('Starboard error:', error));
 
     const config = getConfig(reaction.message.guild.id);
     const bindings = config.reactionRoles[reaction.message.id];

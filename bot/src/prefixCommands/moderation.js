@@ -10,6 +10,7 @@ const { containsBadWord } = require('../utils/profanity');
 const { resolveUser, parseDuration } = require('../utils/args');
 const { slugify } = require('../utils/tickets');
 const { scheduleTempBan } = require('../utils/tempban');
+const { invokeText } = require('../utils/invokeMessages');
 
 const CATEGORY = 'Moderation';
 
@@ -89,9 +90,18 @@ module.exports = [
       const member = await message.guild.members.fetch(user.id).catch(() => null);
       if (!member) return message.reply('That user is not in this server.');
       if (!member.kickable) return message.reply('I cannot kick that member (check role hierarchy).');
+
+      const config = getConfig(message.guild.id);
+      const ctx = { user, moderator: message.author, reason, guild: message.guild };
+      const dmText = invokeText(config, 'kick', 'dm', ctx);
+      const channelText = invokeText(config, 'kick', 'message', ctx);
+
+      if (dmText) await user.send({ embeds: [baseEmbed(COLORS.warning).setDescription(dmText)] }).catch(() => {});
       await member.kick(reason);
       await logAction(message.guild, `👢 **${user.tag}** was kicked by ${message.author.tag}\nReason: ${reason}`);
-      return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been kicked.\nReason: ${reason}`)] });
+      return message.channel.send({
+        embeds: [baseEmbed(COLORS.success).setDescription(channelText ?? `**${user.tag}** has been kicked.\nReason: ${reason}`)],
+      });
     },
   },
   {
@@ -105,16 +115,25 @@ module.exports = [
       const reason = args.slice(1).join(' ') || 'No reason provided';
       const member = await message.guild.members.fetch(user.id).catch(() => null);
       if (member && !member.bannable) return message.reply('I cannot ban that member (check role hierarchy).');
+
+      const config = getConfig(message.guild.id);
+      const ctx = { user, moderator: message.author, reason, guild: message.guild };
+      const dmText = invokeText(config, 'ban', 'dm', ctx);
+      const channelText = invokeText(config, 'ban', 'message', ctx);
+
       await user
-        .send({ embeds: [baseEmbed(COLORS.danger).setDescription(`🔨 You have been banned from **${message.guild.name}**.\nReason: ${reason}`)] })
+        .send({ embeds: [baseEmbed(COLORS.danger).setDescription(dmText ?? `🔨 You have been banned from **${message.guild.name}**.\nReason: ${reason}`)] })
         .catch(() => {});
       await message.guild.members.ban(user.id, { reason });
       await logAction(message.guild, `🔨 **${user.tag}** was banned by ${message.author.tag}\nReason: ${reason}`);
-      return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been banned.\nReason: ${reason}`)] });
+      return message.channel.send({
+        embeds: [baseEmbed(COLORS.success).setDescription(channelText ?? `**${user.tag}** has been banned.\nReason: ${reason}`)],
+      });
     },
   },
   {
     name: 'hb',
+    aliases: ['hardban'],
     category: CATEGORY,
     description: "Hard ban a member — bans and deletes their last 7 days of messages. Usage: hb @user [reason]",
     permissions: [PermissionFlagsBits.BanMembers],
@@ -251,10 +270,18 @@ module.exports = [
       if (!config.warnings[user.id]) config.warnings[user.id] = [];
       config.warnings[user.id].push({ reason, moderator: message.author.id, timestamp: Date.now() });
       saveConfig(message.guild.id);
+
+      const ctx = { user, moderator: message.author, reason, guild: message.guild };
+      const dmText = invokeText(config, 'warn', 'dm', ctx);
+      const channelText = invokeText(config, 'warn', 'message', ctx);
+      if (dmText) await user.send({ embeds: [baseEmbed(COLORS.warning).setDescription(dmText)] }).catch(() => {});
+
       await logAction(message.guild, `⚠️ **${user.tag}** was warned by ${message.author.tag}\nReason: ${reason}`);
       return message.channel.send({
         embeds: [
-          baseEmbed(COLORS.warning).setDescription(`**${user.tag}** has been warned.\nReason: ${reason}\nTotal warnings: ${config.warnings[user.id].length}`),
+          baseEmbed(COLORS.warning).setDescription(
+            channelText ?? `**${user.tag}** has been warned.\nReason: ${reason}\nTotal warnings: ${config.warnings[user.id].length}`,
+          ),
         ],
       });
     },
