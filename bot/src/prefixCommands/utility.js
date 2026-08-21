@@ -1,7 +1,16 @@
+const { ChannelType } = require('discord.js');
 const { baseEmbed } = require('../utils/embeds');
 const { resolveUser } = require('../utils/args');
+const { saveConfig } = require('../config/database');
+const { getDeleted, getEdited } = require('../utils/snipe');
 
 const CATEGORY = 'Utility';
+
+function formatChannel(channel) {
+  if (channel.type === ChannelType.GuildCategory) return `📁 ${channel.name}`;
+  if (channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice) return `🔊 ${channel.name}`;
+  return `#${channel.name}`;
+}
 
 function formatUptime(ms) {
   const seconds = Math.floor(ms / 1000) % 60;
@@ -149,7 +158,7 @@ module.exports = [
     category: CATEGORY,
     description: 'Show the prefixes this server uses.',
     async execute(message, args, config) {
-      return message.channel.send(`My prefixes here are: ${config.prefixes.map((p) => `\`${p}\``).join(', ')}`);
+      return message.channel.send(`Prefixes: ${config.prefixes.map((p) => `\`${p}\``).join(', ')} — e.g. \`${config.prefixes[0]}ban\``);
     },
   },
   {
@@ -209,6 +218,83 @@ module.exports = [
       if (emojis.size === 0) return message.channel.send('This server has no custom emojis.');
       const list = emojis.map((e) => `${e}`).join(' ');
       return message.channel.send({ embeds: [baseEmbed().setTitle(`Emojis (${emojis.size})`).setDescription(list.slice(0, 4000))] });
+    },
+  },
+  {
+    name: 'afk',
+    category: CATEGORY,
+    description: 'Set yourself as AFK. Usage: afk [reason]',
+    async execute(message, args, config) {
+      const reason = args.join(' ') || 'AFK';
+      config.afk[message.author.id] = { reason, timestamp: Date.now() };
+      saveConfig(message.guild.id);
+      return message.channel.send(`💤 ${message.author.tag} is now AFK: ${reason}`);
+    },
+  },
+  {
+    name: 'snipe',
+    category: CATEGORY,
+    description: 'Show the last deleted message in this channel.',
+    async execute(message) {
+      const entry = getDeleted(message.channel.id);
+      if (!entry) return message.reply('There is nothing to snipe in this channel.');
+      const embed = baseEmbed()
+        .setAuthor({ name: entry.authorTag, iconURL: entry.authorAvatar })
+        .setDescription(entry.content || '*No text content*')
+        .setFooter({ text: 'Deleted' })
+        .setTimestamp(entry.timestamp);
+      return message.channel.send({ embeds: [embed] });
+    },
+  },
+  {
+    name: 'editsnipe',
+    category: CATEGORY,
+    description: 'Show the last edited message in this channel.',
+    async execute(message) {
+      const entry = getEdited(message.channel.id);
+      if (!entry) return message.reply('There is nothing to editsnipe in this channel.');
+      const embed = baseEmbed()
+        .setAuthor({ name: entry.authorTag, iconURL: entry.authorAvatar })
+        .addFields(
+          { name: 'Before', value: entry.before?.slice(0, 1024) || '*No text content*' },
+          { name: 'After', value: entry.after?.slice(0, 1024) || '*No text content*' },
+        )
+        .setFooter({ text: 'Edited' })
+        .setTimestamp(entry.timestamp);
+      return message.channel.send({ embeds: [embed] });
+    },
+  },
+  {
+    name: 'roles',
+    category: CATEGORY,
+    description: 'List all roles in this server.',
+    async execute(message) {
+      const roles = message.guild.roles.cache.filter((r) => r.id !== message.guild.id).sort((a, b) => b.position - a.position);
+      if (roles.size === 0) return message.channel.send('This server has no roles.');
+      const list = roles.map((r) => `${r}`).join(' ');
+      return message.channel.send({ embeds: [baseEmbed().setTitle(`Roles (${roles.size})`).setDescription(list.slice(0, 4000))] });
+    },
+  },
+  {
+    name: 'channels',
+    category: CATEGORY,
+    description: 'List all channels in this server.',
+    async execute(message) {
+      const channels = message.guild.channels.cache.filter((c) => !c.isThread());
+      if (channels.size === 0) return message.channel.send('This server has no channels.');
+      const list = channels.map((c) => formatChannel(c)).join('\n');
+      return message.channel.send({ embeds: [baseEmbed().setTitle(`Channels (${channels.size})`).setDescription(list.slice(0, 4000))] });
+    },
+  },
+  {
+    name: 'serverbanner',
+    category: CATEGORY,
+    description: "Show this server's banner.",
+    async execute(message) {
+      if (!message.guild.banner) return message.channel.send('This server does not have a banner set.');
+      return message.channel.send({
+        embeds: [baseEmbed().setTitle(`${message.guild.name}'s banner`).setImage(message.guild.bannerURL({ size: 1024 }))],
+      });
     },
   },
 ];

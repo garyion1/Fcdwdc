@@ -11,6 +11,8 @@ function defaultConfig() {
     modLogChannel: null,
     autorole: null,
     invitedBy: null,
+    tempBans: {},
+    afk: {},
     automod: {
       enabled: false,
       filterInvites: false,

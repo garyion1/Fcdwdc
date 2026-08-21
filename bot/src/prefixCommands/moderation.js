@@ -7,8 +7,9 @@ const { schedulePurge, stopPurge } = require('../utils/autopurge');
 const { isRaidActive, endRaidMode } = require('../utils/antiraid');
 const { jailMember, unjailMember } = require('../utils/jail');
 const { containsBadWord } = require('../utils/profanity');
-const { resolveUser } = require('../utils/args');
+const { resolveUser, parseDuration } = require('../utils/args');
 const { slugify } = require('../utils/tickets');
+const { scheduleTempBan } = require('../utils/tempban');
 
 const CATEGORY = 'Moderation';
 
@@ -34,6 +35,46 @@ module.exports = [
       const result = await unlockChannel(message.channel, message.author);
       if (result.notLocked) return message.reply('This channel is not locked.');
       return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription('🔓 Channel unlocked.')] });
+    },
+  },
+  {
+    name: 'lockdown',
+    category: CATEGORY,
+    description: 'Lock every text channel in the server. Usage: lockdown [reason]',
+    permissions: [PermissionFlagsBits.Administrator],
+    async execute(message, args) {
+      const reason = args.join(' ') || 'Server lockdown';
+      const channels = message.guild.channels.cache.filter((c) => c.isTextBased() && !c.isThread());
+      let locked = 0;
+      for (const channel of channels.values()) {
+        const result = await lockChannel(channel, message.author, reason).catch(() => null);
+        if (result && !result.alreadyLocked) locked += 1;
+      }
+      await logAction(message.guild, `🔒 Server-wide lockdown triggered by ${message.author.tag} (${locked} channel(s) locked)\nReason: ${reason}`);
+      return message.channel.send({ embeds: [baseEmbed(COLORS.danger).setDescription(`🔒 Lockdown complete — ${locked} channel(s) locked.\nReason: ${reason}`)] });
+    },
+  },
+  {
+    name: 'unlockall',
+    category: CATEGORY,
+    description: 'Unlock every locked channel in the server. Usage: unlockall',
+    permissions: [PermissionFlagsBits.Administrator],
+    async execute(message) {
+      const config = getConfig(message.guild.id);
+      const lockedIds = Object.keys(config.locks);
+      let unlocked = 0;
+      for (const channelId of lockedIds) {
+        const channel = message.guild.channels.cache.get(channelId);
+        if (!channel) {
+          delete config.locks[channelId];
+          continue;
+        }
+        const result = await unlockChannel(channel, message.author).catch(() => null);
+        if (result && !result.notLocked) unlocked += 1;
+      }
+      saveConfig(message.guild.id);
+      await logAction(message.guild, `🔓 Server-wide unlock triggered by ${message.author.tag} (${unlocked} channel(s) unlocked)`);
+      return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`🔓 Unlocked ${unlocked} channel(s).`)] });
     },
   },
   {
@@ -90,6 +131,61 @@ module.exports = [
       await logAction(message.guild, `🔨 **${user.tag}** was hard-banned (messages purged) by ${message.author.tag}\nReason: ${reason}`);
       return message.channel.send({
         embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been hard-banned (last 7 days of messages deleted).\nReason: ${reason}`)],
+      });
+    },
+  },
+  {
+    name: 'tempban',
+    category: CATEGORY,
+    description: 'Temporarily ban a member. Usage: tempban @user <duration> [reason] (e.g. tempban @user 7d spamming)',
+    permissions: [PermissionFlagsBits.BanMembers],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      const durationMs = parseDuration(args[1]);
+      if (!user || !durationMs) return message.reply('Usage: `tempban @user <duration> [reason]` (e.g. `tempban @user 7d spamming`)');
+      const reason = args.slice(2).join(' ') || 'No reason provided';
+      const member = await message.guild.members.fetch(user.id).catch(() => null);
+      if (member && !member.bannable) return message.reply('I cannot ban that member (check role hierarchy).');
+      const expiresAt = Date.now() + durationMs;
+      await user
+        .send({
+          embeds: [
+            baseEmbed(COLORS.danger).setDescription(
+              `🔨 You have been temporarily banned from **${message.guild.name}** until <t:${Math.floor(expiresAt / 1000)}:F>.\nReason: ${reason}`,
+            ),
+          ],
+        })
+        .catch(() => {});
+      await message.guild.members.ban(user.id, { reason });
+      const config = getConfig(message.guild.id);
+      config.tempBans[user.id] = { expiresAt, moderator: message.author.id, reason };
+      saveConfig(message.guild.id);
+      scheduleTempBan(message.client, message.guild.id, user.id, durationMs);
+      await logAction(message.guild, `🔨 **${user.tag}** was temp-banned by ${message.author.tag} until <t:${Math.floor(expiresAt / 1000)}:F>\nReason: ${reason}`);
+      return message.channel.send({
+        embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been temp-banned until <t:${Math.floor(expiresAt / 1000)}:F>.\nReason: ${reason}`)],
+      });
+    },
+  },
+  {
+    name: 'softban',
+    category: CATEGORY,
+    description: "Softban a member — removes them and purges their recent messages, but doesn't leave a lasting ban. Usage: softban @user [reason]",
+    permissions: [PermissionFlagsBits.BanMembers],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      if (!user) return message.reply('Usage: `softban @user [reason]`');
+      const reason = args.slice(1).join(' ') || 'No reason provided';
+      const member = await message.guild.members.fetch(user.id).catch(() => null);
+      if (member && !member.bannable) return message.reply('I cannot do that to that member (check role hierarchy).');
+      await user
+        .send({ embeds: [baseEmbed(COLORS.danger).setDescription(`👢 You have been removed from **${message.guild.name}**.\nReason: ${reason}`)] })
+        .catch(() => {});
+      await message.guild.members.ban(user.id, { reason: `Softban: ${reason}`, deleteMessageSeconds: 604800 });
+      await message.guild.members.unban(user.id, 'Softban cleanup').catch(() => {});
+      await logAction(message.guild, `👢 **${user.tag}** was softbanned by ${message.author.tag}\nReason: ${reason}`);
+      return message.channel.send({
+        embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been softbanned (removed, messages purged, free to rejoin).\nReason: ${reason}`)],
       });
     },
   },
@@ -294,6 +390,24 @@ module.exports = [
       saveConfig(message.guild.id);
       await logAction(message.guild, `♻️ ${message.author.tag} cleared ${count} warning(s) for ${user.tag}`);
       return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`Cleared ${count} warning(s) for **${user.tag}**.`)] });
+    },
+  },
+  {
+    name: 'warnremove',
+    category: CATEGORY,
+    description: 'Remove a single warning from a member by number. Usage: warnremove @user <#>',
+    permissions: [PermissionFlagsBits.ModerateMembers],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      const index = parseInt(args[1], 10);
+      if (!user || !Number.isFinite(index) || index < 1) return message.reply('Usage: `warnremove @user <#>` (see the number from `warnings @user`)');
+      const config = getConfig(message.guild.id);
+      const warnings = config.warnings[user.id] ?? [];
+      if (index > warnings.length) return message.reply(`**${user.tag}** only has ${warnings.length} warning(s).`);
+      const [removed] = warnings.splice(index - 1, 1);
+      saveConfig(message.guild.id);
+      await logAction(message.guild, `♻️ ${message.author.tag} removed warning #${index} from ${user.tag}\nReason: ${removed.reason}`);
+      return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`Removed warning #${index} from **${user.tag}**.\nReason was: ${removed.reason}`)] });
     },
   },
   {

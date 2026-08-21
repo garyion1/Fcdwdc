@@ -5,6 +5,7 @@ const { scheduleGiveawayEnd } = require('../commands/giveaway');
 const { schedulePurge } = require('../utils/autopurge');
 const { isBotUsable } = require('../utils/premium');
 const { INVITER_GRACE_PERIOD_MS, enforceInviterLicense } = require('./guildCreate');
+const { scheduleTempBan, liftTempBan } = require('../utils/tempban');
 
 const STATUS_ROTATION_MS = 15000;
 
@@ -51,6 +52,14 @@ module.exports = {
       }
       for (const [channelId, entry] of Object.entries(config.autopurge ?? {})) {
         schedulePurge(client, guildId, channelId, entry.intervalMinutes);
+      }
+      for (const [userId, tempBan] of Object.entries(config.tempBans ?? {})) {
+        const remaining = tempBan.expiresAt - Date.now();
+        if (remaining <= 0) {
+          liftTempBan(client, guildId, userId).catch((error) => console.error('Temp-ban lift error:', error));
+        } else {
+          scheduleTempBan(client, guildId, userId, remaining);
+        }
       }
     }
 

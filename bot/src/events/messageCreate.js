@@ -1,5 +1,5 @@
 const { PermissionFlagsBits } = require('discord.js');
-const { getConfig } = require('../config/database');
+const { getConfig, saveConfig } = require('../config/database');
 const { logAction } = require('../utils/logger');
 const { isBotUsable } = require('../utils/premium');
 
@@ -35,6 +35,21 @@ module.exports = {
 
     const config = getConfig(message.guild.id);
     const usable = isBotUsable(message.guild.id);
+
+    if (usable) {
+      if (config.afk[message.author.id]) {
+        delete config.afk[message.author.id];
+        saveConfig(message.guild.id);
+        message.reply('Welcome back — I removed your AFK status.').catch(() => {});
+      }
+
+      for (const mentioned of message.mentions.users.values()) {
+        const afk = config.afk[mentioned.id];
+        if (afk) {
+          message.reply(`💤 ${mentioned.tag} is AFK: ${afk.reason}`).catch(() => {});
+        }
+      }
+    }
 
     if (usable && config.automod?.enabled && !message.member?.permissions.has(PermissionFlagsBits.ManageMessages)) {
       const reasons = [];
