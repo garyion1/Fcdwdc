@@ -1,4 +1,5 @@
 const { fetchImage, fetchRedditImage } = require('../utils/imageSources');
+const { baseEmbed } = require('../utils/embeds');
 
 const CATEGORY = 'Images';
 
@@ -27,8 +28,9 @@ const commands = KINDS.map(({ name, label, emoji }) => ({
   async execute(message) {
     const result = await fetchImage(name);
     if (!result?.url) return message.reply(NO_SOURCE_MESSAGE);
-    // Sent as plain content so Discord renders the image or GIF inline.
-    return message.channel.send(`${emoji} ${result.url}`).catch(() => {});
+    // Set as an embed image rather than a bare URL — renders the same way
+    // without showing the link itself as text.
+    return message.channel.send({ content: emoji, embeds: [baseEmbed().setImage(result.url)] }).catch(() => {});
   },
 }));
 
@@ -42,7 +44,7 @@ commands.push({
 
     const result = await fetchRedditImage(subreddit).catch(() => null);
     if (!result?.url) return message.reply(`I could not find a loadable image in r/${subreddit} — it may be empty, private, text-only, or not exist.`);
-    return message.channel.send(`**${result.title}**\n${result.url}`).catch(() => {});
+    return message.channel.send({ content: `**${result.title}**`, embeds: [baseEmbed().setImage(result.url)] }).catch(() => {});
   },
 });
 

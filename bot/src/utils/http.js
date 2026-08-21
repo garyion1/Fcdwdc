@@ -22,8 +22,8 @@ async function fetchOnce(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {} } =
   }
 }
 
-async function fetchJson(url, options = {}) {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+async function fetchJson(url, { attempts = 2, ...options } = {}) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     const response = await fetchOnce(url, options);
     if (!response) continue;
     try {
@@ -35,8 +35,8 @@ async function fetchJson(url, options = {}) {
   return null;
 }
 
-async function fetchText(url, options = {}) {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+async function fetchText(url, { attempts = 2, ...options } = {}) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     const response = await fetchOnce(url, options);
     if (!response) continue;
     try {
@@ -80,4 +80,33 @@ async function verifyMediaUrl(url, { timeoutMs = 4000 } = {}) {
   }
 }
 
-module.exports = { fetchJson, fetchText, verifyMediaUrl, USER_AGENT };
+// Runs every task concurrently and resolves with the first truthy result —
+// used to query several gif/image providers at once instead of waiting for
+// each to fail before trying the next. A slow or dead provider no longer
+// adds to the wait; only the fastest one that actually works does.
+async function raceForFirstValid(tasks) {
+  if (tasks.length === 0) return null;
+
+  return new Promise((resolve) => {
+    let remaining = tasks.length;
+    let settled = false;
+
+    for (const task of tasks) {
+      Promise.resolve()
+        .then(task)
+        .catch(() => null)
+        .then((value) => {
+          if (settled) return;
+          if (value) {
+            settled = true;
+            resolve(value);
+            return;
+          }
+          remaining -= 1;
+          if (remaining === 0) resolve(null);
+        });
+    }
+  });
+}
+
+module.exports = { fetchJson, fetchText, verifyMediaUrl, raceForFirstValid, USER_AGENT };

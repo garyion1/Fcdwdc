@@ -1,5 +1,6 @@
 const { resolveUser } = require('../utils/args');
 const { fetchActionGif } = require('../utils/reactionGifs');
+const { baseEmbed, COLORS } = require('../utils/embeds');
 
 const CATEGORY = 'Actions';
 
@@ -48,11 +49,11 @@ module.exports = ACTIONS.map(({ name, targeted, verb, solo }) => ({
 
     const gif = await fetchActionGif(name);
 
-    // The GIF goes in the message content so Discord renders it inline. If
-    // every source failed the line still lands — better than an error for a
-    // fun command — with a short note so a broken network is visible in
-    // Discord itself, not just server logs.
-    const line = gif ? `${text}\n${gif}` : `${text}\n-# *(gif unavailable — the image services could not be reached)*`;
-    return message.channel.send(line).catch(() => {});
+    // The GIF is set as an embed image rather than a bare URL — Discord
+    // renders it the same way, but the link itself is never shown as text.
+    if (gif) {
+      return message.channel.send({ content: text, embeds: [baseEmbed(COLORS.primary).setImage(gif)] }).catch(() => {});
+    }
+    return message.channel.send(`${text}\n-# *(gif unavailable — the image services could not be reached)*`).catch(() => {});
   },
 }));
