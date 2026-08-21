@@ -170,6 +170,20 @@ async function __deploySlashCommands(client) {
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   const body = [...client.commands.values()].map((command) => command.data.toJSON());
   try {
+    // If a command is ever deployed to BOTH the global scope and a specific
+    // guild, Discord shows it twice in that guild's slash-command picker —
+    // two separate entries with the same name, each independently
+    // clickable. That's the usual cause of "it ran twice" for a single
+    // click. This bot deploys on every restart, so clearing the global
+    // scope first guarantees a leftover registration from an earlier
+    // GUILD_ID setting (or lack of one) can never coexist with the current
+    // one — self-healing on every startup, not just a one-time fix.
+    await rest.put(Routes.applicationCommands(client.application.id), { body: [] }).catch(() => {});
+
+    if (process.env.CLEANUP_GUILD_ID && process.env.CLEANUP_GUILD_ID !== process.env.GUILD_ID) {
+      await rest.put(Routes.applicationGuildCommands(client.application.id, process.env.CLEANUP_GUILD_ID), { body: [] }).catch(() => {});
+    }
+
     const route = process.env.GUILD_ID
       ? Routes.applicationGuildCommands(client.application.id, process.env.GUILD_ID)
       : Routes.applicationCommands(client.application.id);

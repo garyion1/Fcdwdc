@@ -9,9 +9,32 @@ const PREMIUM_EXEMPT_COMMANDS = new Set(['help', 'premium', 'redeem', 'support',
 const NO_LICENSE_MESSAGE =
   'This server does not have an active Boat Bot license. Run `/redeem <key>` to activate premium, or `/premium` to check status.';
 
+// Every Discord interaction carries a unique ID. Under a host restart mid-
+// gateway-session, or a WebSocket resume, Discord can occasionally redeliver
+// one — without this, that redelivery would run the command a second time
+// (a second license key DM, a second ban, etc). A short window is enough:
+// a real duplicate delivery lands within seconds, not minutes.
+const recentInteractionIds = new Map();
+const DEDUPE_WINDOW_MS = 30000;
+
+function isDuplicateInteraction(interaction) {
+  const now = Date.now();
+  for (const [id, seenAt] of recentInteractionIds) {
+    if (now - seenAt > DEDUPE_WINDOW_MS) recentInteractionIds.delete(id);
+  }
+  if (recentInteractionIds.has(interaction.id)) return true;
+  recentInteractionIds.set(interaction.id, now);
+  return false;
+}
+
 module.exports = {
   name: 'interactionCreate',
   async execute(interaction, client) {
+    if (isDuplicateInteraction(interaction)) {
+      console.warn(`Ignored a duplicate delivery of interaction ${interaction.id} (${interaction.commandName ?? interaction.customId ?? 'unknown'}).`);
+      return;
+    }
+
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
       if (!command) return;
