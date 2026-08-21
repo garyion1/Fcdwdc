@@ -2,7 +2,6 @@ const { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowB
 const { getConfig } = require('../config/database');
 const { openTicket, claimTicket, closeTicket } = require('../utils/tickets');
 const { isBotUsable } = require('../utils/premium');
-const { flairInteraction } = require('../utils/flair');
 
 // These stay usable even without an active license — they're how a server
 // gets premium in the first place, or gets help/support while it doesn't.
@@ -39,19 +38,18 @@ module.exports = {
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
       if (!command) return;
-      const flaired = flairInteraction(interaction);
       if (!PREMIUM_EXEMPT_COMMANDS.has(interaction.commandName) && !isBotUsable(interaction.guildId)) {
-        return flaired.reply({ content: NO_LICENSE_MESSAGE, flags: MessageFlags.Ephemeral }).catch(() => {});
+        return interaction.reply({ content: NO_LICENSE_MESSAGE, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
       try {
-        await command.execute(flaired, client);
+        await command.execute(interaction, client);
       } catch (error) {
         console.error(`Error executing command ${interaction.commandName}:`, error);
         const payload = { content: 'Something went wrong while running that command.', flags: MessageFlags.Ephemeral };
         if (interaction.replied || interaction.deferred) {
-          await flaired.followUp(payload).catch(() => {});
+          await interaction.followUp(payload).catch(() => {});
         } else {
-          await flaired.reply(payload).catch(() => {});
+          await interaction.reply(payload).catch(() => {});
         }
       }
       return;
