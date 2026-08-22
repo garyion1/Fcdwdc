@@ -14,6 +14,14 @@ function formatMessage(template, member) {
     .replaceAll('{memberCount}', `${member.guild.memberCount}`);
 }
 
+async function applyAutoroles(member, config, memberType) {
+  for (const entry of config.autoroles ?? []) {
+    if (entry.target !== 'all' && entry.target !== memberType) continue;
+    const role = member.guild.roles.cache.get(entry.roleId);
+    if (role) await member.roles.add(role).catch(() => {});
+  }
+}
+
 module.exports = {
   name: 'guildMemberAdd',
   async execute(member) {
@@ -24,6 +32,7 @@ module.exports = {
 
     if (member.user.bot) {
       await handleBotAdd(member).catch((error) => console.error('Antinuke bot-add error:', error));
+      await applyAutoroles(member, config, 'bots');
       return;
     }
 
@@ -68,9 +77,6 @@ module.exports = {
         .catch(() => {});
     }
 
-    if (config.autorole) {
-      const role = member.guild.roles.cache.get(config.autorole);
-      if (role) await member.roles.add(role).catch(() => {});
-    }
+    await applyAutoroles(member, config, 'humans');
   },
 };

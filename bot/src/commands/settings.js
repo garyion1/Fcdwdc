@@ -130,10 +130,16 @@ module.exports = {
 
     if (sub === 'autorole') {
       const role = interaction.options.getRole('role');
-      config.autorole = role ? role.id : null;
+      config.autoroles = role ? [{ roleId: role.id, target: 'all' }] : [];
       saveConfig(interaction.guildId);
       return interaction.reply({
-        embeds: [baseEmbed(COLORS.success).setDescription(role ? `New members will automatically receive ${role}.` : 'Autorole disabled.')],
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            role
+              ? `New members will automatically receive ${role}.\nThis replaces any autoroles set with \`,autorole\` — use \`,autorole add\` to add more without replacing.`
+              : 'Autorole disabled — this cleared every autorole, including ones added with `,autorole`.',
+          ),
+        ],
       });
     }
 

@@ -548,4 +548,53 @@ module.exports = [
       });
     },
   },
+  {
+    name: 'autorole',
+    category: CATEGORY,
+    description: 'Give new members a role automatically. Usage: autorole add <role> [humans|bots] | remove <role> | list | reset',
+    permissions: [PermissionFlagsBits.ManageGuild],
+    async execute(message, args, config) {
+      const action = args[0]?.toLowerCase();
+
+      if (action === 'add') {
+        const role = resolveRole(message, args[1]);
+        const targetArg = args[2]?.toLowerCase();
+        const target = ['humans', 'bots'].includes(targetArg) ? targetArg : 'all';
+        if (!role) return message.reply('Usage: `autorole add <role> [humans|bots]` — leave the target off to apply to everyone.');
+        if (!role.editable) return message.reply('I cannot assign that role — move my role above it.');
+        if (config.autoroles.some((entry) => entry.roleId === role.id)) return message.reply('That role is already an autorole.');
+
+        config.autoroles.push({ roleId: role.id, target });
+        saveConfig(message.guild.id);
+        return message.channel.send({
+          embeds: [
+            baseEmbed(COLORS.success).setDescription(
+              `${role} will now be given automatically to ${target === 'all' ? 'every new member' : `new ${target}`}.`,
+            ),
+          ],
+        });
+      }
+
+      if (action === 'remove') {
+        const role = resolveRole(message, args[1]);
+        if (!role) return message.reply('Usage: `autorole remove <role>`');
+        const before = config.autoroles.length;
+        config.autoroles = config.autoroles.filter((entry) => entry.roleId !== role.id);
+        if (config.autoroles.length === before) return message.reply('That role is not an autorole.');
+
+        saveConfig(message.guild.id);
+        return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`${role} is no longer an autorole.`)] });
+      }
+
+      if (action === 'reset') {
+        config.autoroles = [];
+        saveConfig(message.guild.id);
+        return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription('All autoroles cleared.')] });
+      }
+
+      if (config.autoroles.length === 0) return message.channel.send('No autoroles are set up — add one with `autorole add <role>`.');
+      const lines = config.autoroles.map((entry) => `<@&${entry.roleId}> — ${entry.target}`);
+      return message.channel.send({ embeds: [baseEmbed().setTitle(`Autoroles (${config.autoroles.length})`).setDescription(lines.join('\n'))] });
+    },
+  },
 ];

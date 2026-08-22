@@ -14,6 +14,16 @@ const { invokeText } = require('../utils/invokeMessages');
 
 const CATEGORY = 'Moderation';
 
+function resolveRole(message, arg) {
+  if (!arg) return null;
+  return (
+    message.mentions.roles.first() ??
+    message.guild.roles.cache.get(arg.replace(/[<@&>]/g, '')) ??
+    message.guild.roles.cache.find((r) => r.name.toLowerCase() === arg.toLowerCase()) ??
+    null
+  );
+}
+
 module.exports = [
   {
     name: 'lock',
@@ -791,6 +801,105 @@ module.exports = [
           ),
         ],
       });
+    },
+  },
+  {
+    name: 'role',
+    category: CATEGORY,
+    description: 'Give or take a role from a member. Usage: role @user <role>',
+    permissions: [PermissionFlagsBits.ManageRoles],
+    async execute(message, args) {
+      const user = await resolveUser(message, args[0]);
+      const role = resolveRole(message, args.slice(1).join(' '));
+      if (!user || !role) return message.reply('Usage: `role @user <role>`');
+      if (!role.editable) return message.reply('I cannot manage that role — move my role above it.');
+
+      const member = await message.guild.members.fetch(user.id).catch(() => null);
+      if (!member) return message.reply('That user is not in this server.');
+
+      const has = member.roles.cache.has(role.id);
+      await (has ? member.roles.remove(role) : member.roles.add(role)).catch(() => {});
+      await logAction(message.guild, `${has ? '➖' : '➕'} ${role} ${has ? 'removed from' : 'given to'} **${user.tag}** by ${message.author.tag}`);
+      return message.channel.send({
+        embeds: [baseEmbed(COLORS.success).setDescription(`${has ? 'Removed' : 'Gave'} ${role} ${has ? 'from' : 'to'} **${user.tag}**.`)],
+      });
+    },
+  },
+  {
+    name: 'masskick',
+    category: CATEGORY,
+    description: 'Kick every member with a role. Usage: masskick <role> [reason]',
+    permissions: [PermissionFlagsBits.KickMembers, PermissionFlagsBits.Administrator],
+    async execute(message, args) {
+      const role = resolveRole(message, args[0]);
+      if (!role) return message.reply('Usage: `masskick <role> [reason]`');
+      const reason = args.slice(1).join(' ') || 'Mass kick';
+
+      const targets = role.members.filter((m) => m.kickable);
+      if (targets.size === 0) return message.reply('No kickable members have that role.');
+
+      const notice = await message.channel.send(`Kicking ${targets.size} member(s) with ${role}...`);
+      let kicked = 0;
+      for (const member of targets.values()) {
+        await member.kick(reason).catch(() => {});
+        kicked += 1;
+      }
+
+      await logAction(message.guild, `👢 ${message.author.tag} mass-kicked ${kicked} member(s) with ${role}\nReason: ${reason}`);
+      return notice.edit({ content: null, embeds: [baseEmbed(COLORS.success).setDescription(`Kicked **${kicked}** member(s) with ${role}.`)] });
+    },
+  },
+  {
+    name: 'massban',
+    category: CATEGORY,
+    description: 'Ban a list of members by ID. Usage: massban <id1> <id2> ... [-- reason]',
+    permissions: [PermissionFlagsBits.BanMembers, PermissionFlagsBits.Administrator],
+    async execute(message, args) {
+      const separator = args.indexOf('--');
+      const idArgs = separator === -1 ? args : args.slice(0, separator);
+      const reason = separator === -1 ? 'Mass ban' : args.slice(separator + 1).join(' ') || 'Mass ban';
+      const ids = [...new Set(idArgs.map((a) => a.replace(/[<@!>]/g, '')).filter((id) => /^\d{15,25}$/.test(id)))];
+
+      if (ids.length === 0) return message.reply('Usage: `massban <id1> <id2> ... [-- reason]`');
+      if (ids.length > 100) return message.reply('That is too many at once — split it into batches of 100 or fewer.');
+
+      const notice = await message.channel.send(`Banning ${ids.length} user(s)...`);
+      let banned = 0;
+      for (const id of ids) {
+        const ok = await message.guild.members.ban(id, { reason }).then(() => true).catch(() => false);
+        if (ok) banned += 1;
+      }
+
+      await logAction(message.guild, `🔨 ${message.author.tag} mass-banned ${banned}/${ids.length} user(s)\nReason: ${reason}`);
+      return notice.edit({
+        content: null,
+        embeds: [baseEmbed(COLORS.success).setDescription(`Banned **${banned}/${ids.length}** user(s).${banned < ids.length ? '\nSome IDs failed — already banned, invalid, or not found.' : ''}`)],
+      });
+    },
+  },
+  {
+    name: 'unbanall',
+    category: CATEGORY,
+    description: 'Unban every currently banned user. Usage: unbanall confirm',
+    permissions: [PermissionFlagsBits.Administrator],
+    async execute(message, args) {
+      if (args[0]?.toLowerCase() !== 'confirm') {
+        const bans = await message.guild.bans.fetch().catch(() => null);
+        return message.reply(`This will unban **${bans?.size ?? 'all'}** user(s). Run \`unbanall confirm\` to go through with it.`);
+      }
+
+      const bans = await message.guild.bans.fetch().catch(() => null);
+      if (!bans || bans.size === 0) return message.reply('There are no banned users.');
+
+      const notice = await message.channel.send(`Unbanning ${bans.size} user(s)...`);
+      let unbanned = 0;
+      for (const ban of bans.values()) {
+        const ok = await message.guild.members.unban(ban.user.id, 'Mass unban').then(() => true).catch(() => false);
+        if (ok) unbanned += 1;
+      }
+
+      await logAction(message.guild, `♻️ ${message.author.tag} mass-unbanned ${unbanned} user(s)`);
+      return notice.edit({ content: null, embeds: [baseEmbed(COLORS.success).setDescription(`Unbanned **${unbanned}** user(s).`)] });
     },
   },
 ];

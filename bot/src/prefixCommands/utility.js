@@ -87,7 +87,6 @@ module.exports = [
   },
   {
     name: 'roleinfo',
-    aliases: ['role'],
     category: CATEGORY,
     description: 'Show information about a role. Usage: roleinfo <@role|name>',
     async execute(message, args) {

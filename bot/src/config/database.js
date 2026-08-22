@@ -9,7 +9,7 @@ function defaultConfig() {
     leaveMessage: '{user} has left {server}.',
     logChannel: null,
     modLogChannel: null,
-    autorole: null,
+    autoroles: [],
     invitedBy: null,
     tempBans: {},
     afk: {},
@@ -160,6 +160,14 @@ function getConfig(guildId) {
   if (row) {
     try {
       const saved = JSON.parse(row.config);
+
+      // Pre-multi-role configs stored a single "autorole" role id (or null).
+      // Fold it into the new array once so an existing setup isn't lost.
+      if (saved.autorole !== undefined && !saved.autoroles) {
+        saved.autoroles = saved.autorole ? [{ roleId: saved.autorole, target: 'all' }] : [];
+        delete saved.autorole;
+      }
+
       config = {
         ...config,
         ...saved,

@@ -31,7 +31,7 @@ module.exports = {
         { name: 'Leave channel', value: config.leaveChannel ? `<#${config.leaveChannel}>` : 'Not set', inline: true },
         { name: 'Log channel', value: config.logChannel ? `<#${config.logChannel}>` : 'Not set', inline: true },
         { name: 'Mod log channel', value: config.modLogChannel ? `<#${config.modLogChannel}>` : 'Not set', inline: true },
-        { name: 'Autorole', value: config.autorole ? `<@&${config.autorole}>` : 'Not set', inline: true },
+        { name: 'Autorole', value: config.autoroles.length > 0 ? `${config.autoroles.length} role(s)` : 'Not set', inline: true },
         { name: 'Prefixes', value: config.prefixes.map((p) => `\`${p}\``).join(', '), inline: true },
         { name: 'Automod', value: config.automod.enabled ? 'Enabled' : 'Disabled', inline: true },
         { name: 'Custom commands', value: `${Object.keys(config.customCommands).length}`, inline: true },
