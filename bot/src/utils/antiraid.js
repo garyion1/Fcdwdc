@@ -4,6 +4,15 @@ const { logAction } = require('./logger');
 const { baseEmbed, COLORS } = require('./embeds');
 
 const joinTimestamps = new Map();
+
+// Join windows are seconds long; without this the map keeps a key for every
+// guild that has ever had a join for as long as the process runs.
+setInterval(() => {
+  const cutoff = Date.now() - 5 * 60 * 1000;
+  for (const [guildId, timestamps] of joinTimestamps) {
+    if (!timestamps.length || timestamps[timestamps.length - 1] < cutoff) joinTimestamps.delete(guildId);
+  }
+}, 5 * 60 * 1000).unref?.();
 const raidState = new Map();
 
 function recordJoin(guildId, windowSeconds) {

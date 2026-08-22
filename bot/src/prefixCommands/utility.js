@@ -96,6 +96,10 @@ module.exports = [
         message.guild.roles.cache.get(args[0]) ??
         message.guild.roles.cache.find((r) => r.name.toLowerCase() === args.join(' ').toLowerCase());
       if (!role) return message.reply('Could not find that role.');
+      // role.members is derived from the member cache, which is capped for
+      // scale — fetch so the count is real rather than "whoever happens to
+      // be cached".
+      await message.guild.members.fetch().catch(() => {});
       const embed = baseEmbed(role.color || undefined)
         .setTitle(role.name)
         .addFields(

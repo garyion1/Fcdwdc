@@ -1,10 +1,17 @@
-const { getConfig, saveConfig } = require('../config/database');
+const { getConfig, saveConfig, getGuildIdsWith } = require('../config/database');
 
 // Discord rate-limits channel renames hard (2 per 10 minutes), so counters are
 // refreshed on a timer rather than on every join/leave.
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 const COUNTER_TYPES = ['members', 'humans', 'bots', 'boosts', 'roles', 'channels'];
+
+// Member caching is capped for scale, so a humans/bots split can't be read
+// off the cache — those two types fetch the member list for that guild
+// first. Only guilds that actually configured such a counter reach here.
+function needsMemberList(type) {
+  return type === 'humans' || type === 'bots';
+}
 
 function counterValue(guild, type) {
   switch (type) {
@@ -24,11 +31,22 @@ function counterValue(guild, type) {
 }
 
 async function refreshCounters(client) {
-  for (const guild of client.guilds.cache.values()) {
+  // Previously this walked every guild the bot is in and called getConfig on
+  // each, which parsed and cached thousands of configs to find the handful
+  // that use counters. Ask the database for those directly instead.
+  for (const guildId of getGuildIdsWith('$.counters')) {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) continue;
+
     const config = getConfig(guild.id);
     let dirty = false;
 
-    for (const [channelId, counter] of Object.entries(config.counters)) {
+    const counters = Object.entries(config.counters);
+    if (counters.some(([, counter]) => needsMemberList(counter.type))) {
+      await guild.members.fetch().catch(() => {});
+    }
+
+    for (const [channelId, counter] of counters) {
       const channel = guild.channels.cache.get(channelId);
       if (!channel) {
         delete config.counters[channelId];

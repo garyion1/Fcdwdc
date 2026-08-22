@@ -2,7 +2,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const { saveConfig } = require('../config/database');
 const { baseEmbed, COLORS } = require('../utils/embeds');
 const { resolveUser } = require('../utils/args');
-const { levelFromTotalXp, setLevel, setXp, leaderboard, applyLevelRoles } = require('../utils/leveling');
+const { levelFromTotalXp, setLevel, setXp, rankOf, allRankedUsers, leaderboard, applyLevelRoles } = require('../utils/leveling');
 
 const CATEGORY = 'Leveling';
 
@@ -35,11 +35,8 @@ module.exports = [
     async execute(message, args, config) {
       if (!config.leveling.enabled) return message.reply('Leveling is disabled here — an admin can turn it on with `levels on`.');
       const user = (await resolveUser(message, args[0])) ?? message.author;
-      const xp = config.leveling.users[user.id]?.xp ?? 0;
+      const { xp, position } = rankOf(message.guild.id, user.id);
       const { level, into, needed } = levelFromTotalXp(xp);
-
-      const ranked = leaderboard(message.guild.id, 1000);
-      const position = ranked.findIndex((entry) => entry.userId === user.id) + 1;
 
       return message.channel.send({
         embeds: [
@@ -205,10 +202,10 @@ module.exports = [
       if (action === 'sync') {
         const notice = await message.channel.send('Syncing level roles for everyone with XP...');
         let synced = 0;
-        for (const [userId, data] of Object.entries(config.leveling.users)) {
+        for (const { userId, xp } of allRankedUsers(message.guild.id)) {
           const member = await message.guild.members.fetch(userId).catch(() => null);
           if (!member) continue;
-          await applyLevelRoles(member, levelFromTotalXp(data.xp).level);
+          await applyLevelRoles(member, levelFromTotalXp(xp).level);
           synced += 1;
         }
         return notice.edit({ content: null, embeds: [baseEmbed(COLORS.success).setDescription(`Synced level roles for **${synced}** member(s).`)] });

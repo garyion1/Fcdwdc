@@ -11,6 +11,8 @@ module.exports = {
     await guild.members.fetch().catch(() => {});
 
     const totalMembers = guild.memberCount;
+    // Member cache is capped for scale; fetch so the split is accurate.
+    await guild.members.fetch().catch(() => {});
     const humans = guild.members.cache.filter((m) => !m.user.bot).size;
     const bots = totalMembers - humans;
     const textChannels = guild.channels.cache.filter((c) => c.type === ChannelType.GuildText).size;

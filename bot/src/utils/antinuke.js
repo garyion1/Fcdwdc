@@ -9,6 +9,15 @@ const ACTION_WINDOW_MS = 20000;
 
 const recentActions = new Map();
 
+// Entries were filtered by age on read but never deleted, so the map grew one
+// key per (guild, user, action) seen for the life of the process.
+setInterval(() => {
+  const cutoff = Date.now() - ACTION_WINDOW_MS;
+  for (const [key, timestamps] of recentActions) {
+    if (timestamps.every((t) => t < cutoff)) recentActions.delete(key);
+  }
+}, 5 * 60 * 1000).unref?.();
+
 function recordAction(guildId, userId, kind) {
   const key = `${guildId}:${userId}:${kind}`;
   const now = Date.now();

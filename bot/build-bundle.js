@@ -151,8 +151,6 @@ for (const file of [...sourceFiles, entryFile]) {
       if (code === before) throw new Error('db.js DATA_DIR rewrite did not apply — check the path expression.');
     }
 
-    // The entry needs to expose the client so the epilogue can hook ready.
-    if (key === 'index') code += '\nmodule.exports = { client };\n';
   }
 
   chunks.push(`__modules[${JSON.stringify(key)}] = function (module, exports, require) {\n${code}\n};\n`);
@@ -165,6 +163,10 @@ chunks.push(`// ---- standalone entry ----
 const { REST, Routes } = require('discord.js');
 
 const __app = __require('index');
+
+// index exposes a client only when this process is an actual shard. Running
+// as the sharding manager there is nothing to deploy commands to — the
+// children each go through this same path.
 
 async function __deploySlashCommands(client) {
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -195,9 +197,15 @@ async function __deploySlashCommands(client) {
   }
 }
 
-__app.client.once('ready', () => {
-  __deploySlashCommands(__app.client).catch((error) => console.error('Slash command deploy error:', error));
-});
+if (__app.client) {
+  __app.client.once('ready', () => {
+    const client = __app.client;
+    // Commands are global to the application, so only one shard should push
+    // them — otherwise every shard makes the same overwrite call on boot.
+    if (client.shard && !client.shard.ids.includes(0)) return;
+    __deploySlashCommands(client).catch((error) => console.error('Slash command deploy error:', error));
+  });
+}
 `);
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });

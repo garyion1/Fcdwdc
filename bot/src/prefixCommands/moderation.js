@@ -835,6 +835,10 @@ module.exports = [
       if (!role) return message.reply('Usage: `masskick <role> [reason]`');
       const reason = args.slice(1).join(' ') || 'Mass kick';
 
+      // role.members reads the member cache, which is capped for scale —
+      // without this the command would only kick whoever happened to be
+      // cached rather than everyone holding the role.
+      await message.guild.members.fetch().catch(() => {});
       const targets = role.members.filter((m) => m.kickable);
       if (targets.size === 0) return message.reply('No kickable members have that role.');
 

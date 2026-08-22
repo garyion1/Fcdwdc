@@ -1,4 +1,4 @@
-const { getAllGuildIds, getConfig, saveConfig } = require('../config/database');
+const { getConfig, saveConfig, getGuildIdsWith } = require('../config/database');
 const { getLicense } = require('./licenses');
 const { baseEmbed, COLORS } = require('./embeds');
 const { logLicenseEvent } = require('./licenseLog');
@@ -66,7 +66,14 @@ async function notifyRedeemer(client, licenseKey, guildId, kind, remainingMs) {
 async function sweepLicenseExpiry(client) {
   const now = Date.now();
 
-  for (const guildId of getAllGuildIds()) {
+  // Only guilds with premium switched on — a lifetime or unlicensed guild
+  // has nothing to expire, and at scale most guilds are one or the other.
+  for (const guildId of getGuildIdsWith('$.premium.active')) {
+    // Every shard sees the whole database. Without this each would send the
+    // same expiry DM, and the guild name lookup below would miss for guilds
+    // that live on another shard.
+    if (!client.guilds.cache.has(guildId)) continue;
+
     const config = getConfig(guildId);
     const premium = config.premium;
     if (!premium?.active || !premium.expiresAt) continue;

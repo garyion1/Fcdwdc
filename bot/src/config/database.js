@@ -142,7 +142,54 @@ function defaultConfig() {
   };
 }
 
+// Configs are cached in memory. With XP moved to its own table a config is
+// small (a couple of KB), so the cache is a working-set cache rather than a
+// memory emergency — but it still needs a ceiling so a long-running process
+// across thousands of guilds doesn't hold every one forever.
+//
+// Eviction is safe because every mutation is followed by saveConfig, so a
+// dropped entry just reloads on the next read. The one hazard is evicting a
+// config *between* a caller reading it and saving it — some commands hold one
+// across a long await loop. Entries accessed within IDLE_MS are therefore
+// never evicted, which covers every such window in this codebase by a wide
+// margin, and means the cache settles at "guilds active in the last few
+// minutes" rather than "every guild ever seen".
+const CACHE_MAX = Number(process.env.CONFIG_CACHE_MAX) || 2000;
+const CACHE_IDLE_MS = Number(process.env.CONFIG_CACHE_IDLE_MS) || 5 * 60 * 1000;
+
 const cache = new Map();
+const lastTouched = new Map();
+
+function touch(guildId) {
+  lastTouched.set(guildId, Date.now());
+}
+
+function evictIdle(force = false) {
+  if (!force && cache.size <= CACHE_MAX) return 0;
+
+  const now = Date.now();
+  const evictable = [...lastTouched.entries()]
+    .filter(([, at]) => now - at > CACHE_IDLE_MS)
+    .sort((a, b) => a[1] - b[1]);
+
+  // Over the cap, trim back to it; on the idle timer, drop everything cold.
+  let budget = force ? evictable.length : cache.size - CACHE_MAX;
+  let evicted = 0;
+
+  for (const [guildId] of evictable) {
+    if (budget <= 0) break;
+    cache.delete(guildId);
+    lastTouched.delete(guildId);
+    budget -= 1;
+    evicted += 1;
+  }
+  return evicted;
+}
+
+// A burst — a mass-join, or a sweep touching many guilds at once — creates
+// entries that are all too fresh to evict on the spot. This drains them once
+// they go cold, so the cache doesn't simply stay at its high-water mark.
+setInterval(() => evictIdle(true), CACHE_IDLE_MS).unref?.();
 
 const selectConfigStmt = db.prepare('SELECT config FROM guild_config WHERE guild_id = ?');
 const upsertConfigStmt = db.prepare(`
@@ -152,7 +199,10 @@ const upsertConfigStmt = db.prepare(`
 const allGuildIdsStmt = db.prepare('SELECT guild_id FROM guild_config');
 
 function getConfig(guildId) {
-  if (cache.has(guildId)) return cache.get(guildId);
+  if (cache.has(guildId)) {
+    touch(guildId);
+    return cache.get(guildId);
+  }
 
   let config = defaultConfig();
   const row = selectConfigStmt.get(guildId);
@@ -193,6 +243,8 @@ function getConfig(guildId) {
   }
 
   cache.set(guildId, config);
+  touch(guildId);
+  evictIdle();
   return config;
 }
 
@@ -206,4 +258,43 @@ function getAllGuildIds() {
   return allGuildIdsStmt.all().map((row) => row.guild_id);
 }
 
-module.exports = { getConfig, saveConfig, defaultConfig, getAllGuildIds };
+// Returns only the guilds whose stored config actually has something at
+// `jsonPath` — a non-empty object/array, or a truthy scalar.
+//
+// The periodic sweeps used to walk every guild and call getConfig on each,
+// which both parsed and cached thousands of configs just to discover that
+// almost none of them use the feature. Filtering in SQLite instead keeps a
+// sweep proportional to the guilds actually using it.
+// json_extract returns a SQLite integer for JSON booleans (0/1) and a text
+// blob for objects and arrays, so the "empty" list has to cover both storage
+// classes — comparing integer 0 against the string '0' never matches, which
+// would let every `false` through.
+const guildIdsWithStmt = db.prepare(`
+  SELECT guild_id FROM guild_config
+  WHERE json_valid(config)
+    AND json_extract(config, ?) IS NOT NULL
+    AND json_extract(config, ?) NOT IN (0, '{}', '[]', '')
+`);
+
+function getGuildIdsWith(jsonPath) {
+  try {
+    return guildIdsWithStmt.all(jsonPath, jsonPath).map((row) => row.guild_id);
+  } catch (error) {
+    // JSON1 missing or a malformed path — fall back to every guild rather
+    // than silently skipping the feature entirely.
+    console.error(`getGuildIdsWith(${jsonPath}) failed, falling back to all guilds:`, error);
+    return getAllGuildIds();
+  }
+}
+
+function cacheStats() {
+  return { size: cache.size, max: CACHE_MAX, idleMs: CACHE_IDLE_MS };
+}
+
+// Test-only: forces an idle sweep with the age requirement waived.
+function _evictAllIdleForTests() {
+  for (const guildId of [...lastTouched.keys()]) lastTouched.set(guildId, 0);
+  return evictIdle(true);
+}
+
+module.exports = { getConfig, saveConfig, defaultConfig, getAllGuildIds, getGuildIdsWith, cacheStats, _evictAllIdleForTests };

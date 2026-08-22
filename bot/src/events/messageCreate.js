@@ -35,6 +35,14 @@ const SPAM_MESSAGE_LIMIT = 6;
 
 const recentMessages = new Map();
 
+// The spam window is seconds; the map was keeping a key per author seen.
+setInterval(() => {
+  const cutoff = Date.now() - SPAM_WINDOW_MS;
+  for (const [userId, timestamps] of recentMessages) {
+    if (!timestamps.length || timestamps[timestamps.length - 1] < cutoff) recentMessages.delete(userId);
+  }
+}, 5 * 60 * 1000).unref?.();
+
 function isSpam(userId) {
   const now = Date.now();
   const timestamps = (recentMessages.get(userId) ?? []).filter((t) => now - t < SPAM_WINDOW_MS);

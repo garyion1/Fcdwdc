@@ -1,5 +1,5 @@
 const { ActivityType } = require('discord.js');
-const { getAllGuildIds, getConfig } = require('../config/database');
+const { getConfig, getGuildIdsWith } = require('../config/database');
 const { getAdminGuildId } = require('../utils/licenses');
 const { scheduleGiveawayEnd } = require('../commands/giveaway');
 const { schedulePurge } = require('../utils/autopurge');
@@ -49,7 +49,21 @@ module.exports = {
     console.log(`Boat Bot is online as ${client.user.tag}`);
     startStatusRotation(client);
 
-    for (const guildId of getAllGuildIds()) {
+    // Only guilds that actually have something scheduled — walking every
+    // guild here would parse and cache thousands of configs at boot just to
+    // find the few with a pending giveaway or timer.
+    const scheduled = new Set([
+      ...getGuildIdsWith('$.giveaways'),
+      ...getGuildIdsWith('$.autopurge'),
+      ...getGuildIdsWith('$.tempBans'),
+      ...getGuildIdsWith('$.timers'),
+    ]);
+
+    for (const guildId of scheduled) {
+      // Under sharding every shard reads the same database, so without this
+      // each one would schedule the same giveaway end and temp-ban lift and
+      // they'd all fire. A guild lives on exactly one shard.
+      if (!client.guilds.cache.has(guildId)) continue;
       if (!isBotUsable(guildId)) continue;
       const config = getConfig(guildId);
       for (const [messageId, giveaway] of Object.entries(config.giveaways ?? {})) {
@@ -75,7 +89,9 @@ module.exports = {
     startCounterRefresh(client);
     restoreBumpReminders(client);
     startLicenseExpirySweep(client);
-    startGifCacheWarmer();
+    // Global data shared through the database — only one shard needs to
+    // refresh it.
+    if (!client.shard || client.shard.ids.includes(0)) startGifCacheWarmer();
     pruneTempChannels(client).catch((error) => console.error('VoiceMaster prune error:', error));
 
     // The inviter-license grace period is only ever scheduled with an

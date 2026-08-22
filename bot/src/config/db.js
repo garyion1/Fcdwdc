@@ -73,7 +73,62 @@ db.exec(`
     urls TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   );
+
+  -- Leveling XP lives here rather than inside the guild_config JSON blob.
+  -- In the blob, awarding one member XP meant re-serialising and rewriting
+  -- every member's XP for that guild on every single message; as its own
+  -- table it's a one-row upsert no matter how many ranked members exist.
+  CREATE TABLE IF NOT EXISTS guild_xp (
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    xp INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, user_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_guild_xp_leaderboard ON guild_xp(guild_id, xp DESC);
 `);
+
+// One-time move of any XP still embedded in a guild's config blob into
+// guild_xp. Runs once per guild; the blob copy is dropped afterwards so it
+// can't drift out of sync with the table.
+function migrateEmbeddedXp() {
+  const done = db.prepare("SELECT value FROM meta WHERE key = 'xpTableMigrated'").get();
+  if (done?.value === '1') return;
+
+  const rows = db.prepare('SELECT guild_id, config FROM guild_config').all();
+  const insert = db.prepare('INSERT OR IGNORE INTO guild_xp (guild_id, user_id, xp) VALUES (?, ?, ?)');
+  const updateConfig = db.prepare('UPDATE guild_config SET config = ? WHERE guild_id = ?');
+  let moved = 0;
+
+  const run = db.transaction(() => {
+    for (const row of rows) {
+      let parsed;
+      try {
+        parsed = JSON.parse(row.config);
+      } catch {
+        continue;
+      }
+
+      const users = parsed?.leveling?.users;
+      if (!users || typeof users !== 'object') continue;
+
+      for (const [userId, data] of Object.entries(users)) {
+        const xp = Number(data?.xp);
+        if (Number.isFinite(xp) && xp > 0) {
+          insert.run(row.guild_id, userId, Math.round(xp));
+          moved += 1;
+        }
+      }
+
+      parsed.leveling.users = {};
+      updateConfig.run(JSON.stringify(parsed), row.guild_id);
+    }
+    db.prepare("INSERT INTO meta (key, value) VALUES ('xpTableMigrated', '1') ON CONFLICT(key) DO UPDATE SET value = '1'").run();
+  });
+
+  run();
+  if (moved > 0) console.log(`Moved ${moved} XP record(s) out of guild configs into the guild_xp table.`);
+}
 
 function migrateLegacyGuildConfigs() {
   const legacyDir = path.join(DATA_DIR, 'guilds');
@@ -152,5 +207,6 @@ function migrateLegacyGlobalStore() {
 
 migrateLegacyGuildConfigs();
 migrateLegacyGlobalStore();
+migrateEmbeddedXp();
 
 module.exports = { db };
