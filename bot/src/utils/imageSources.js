@@ -1,4 +1,5 @@
 const { fetchJson, verifyMediaUrl, raceForFirstValid, USER_AGENT } = require('./http');
+const { pickRandomCached } = require('./gifCache');
 
 const IMAGE_EXTENSIONS = /\.(gif|gifv|jpe?g|png|webp)$/i;
 
@@ -87,9 +88,16 @@ const SOURCES = {
 };
 
 async function fetchImage(kind) {
-  const source = SOURCES[kind];
-  if (!source) return null;
-  return source().catch(() => null);
+  if (!SOURCES[kind]) return null;
+
+  // The normal path: instant, from the ~100-url pool kept warm in the
+  // background — no request happens on the command itself.
+  const cached = pickRandomCached(`image:${kind}`);
+  if (cached) return { url: cached };
+
+  // Only reached if the cache hasn't warmed yet — a live lookup so the
+  // command still works immediately rather than coming back empty.
+  return SOURCES[kind]().catch(() => null);
 }
 
 module.exports = { fetchImage, fetchRedditImage, SOURCES };

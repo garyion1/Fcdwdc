@@ -1,4 +1,5 @@
 const { fetchJson, verifyMediaUrl, raceForFirstValid } = require('./http');
+const { pickRandomCached } = require('./gifCache');
 
 // Short and no retry — these run in parallel against every source an action
 // lists, so the total wait is whichever one answers first, not the sum of
@@ -50,9 +51,17 @@ const ACTIONS = {
 };
 
 async function fetchActionGif(action) {
-  const sources = ACTIONS[action];
-  if (!sources) return null;
+  if (!ACTIONS[action]) return null;
 
+  // The normal path: instant, from the ~100-url pool kept warm in the
+  // background — no request happens on the command itself.
+  const cached = pickRandomCached(`action:${action}`);
+  if (cached) return cached;
+
+  // Only reached if the cache hasn't warmed yet (e.g. right after startup) —
+  // a live, parallel-raced lookup so the command still works immediately
+  // rather than coming back empty while the pool fills.
+  const sources = ACTIONS[action];
   const tasks = sources.map(([source, endpoint]) => async () => {
     const url = await SOURCE_FETCHERS[source](endpoint).catch(() => null);
     if (!url) return null;

@@ -63,6 +63,16 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_license_seats_key ON license_seats(license_key);
+
+  -- A pool of pre-fetched, pre-verified gif/image URLs per category (e.g.
+  -- "action:hug", "image:cat"), refreshed in the background on a timer.
+  -- Commands read from this instead of calling an API live, so a reaction
+  -- command never waits on the network.
+  CREATE TABLE IF NOT EXISTS gif_cache (
+    category TEXT PRIMARY KEY,
+    urls TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
 `);
 
 function migrateLegacyGuildConfigs() {

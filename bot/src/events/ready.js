@@ -11,6 +11,7 @@ const { startCounterRefresh } = require('../utils/counters');
 const { pruneTempChannels } = require('../utils/voicemaster');
 const { restoreBumpReminders } = require('../utils/bumpReminder');
 const { startLicenseExpirySweep } = require('../utils/licenseExpiry');
+const { startGifCacheWarmer } = require('../utils/gifCache');
 
 const STATUS_ROTATION_MS = 15000;
 
@@ -74,6 +75,7 @@ module.exports = {
     startCounterRefresh(client);
     restoreBumpReminders(client);
     startLicenseExpirySweep(client);
+    startGifCacheWarmer();
     pruneTempChannels(client).catch((error) => console.error('VoiceMaster prune error:', error));
 
     // The inviter-license grace period is only ever scheduled with an
