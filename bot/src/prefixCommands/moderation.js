@@ -11,6 +11,7 @@ const { resolveUser, parseDuration } = require('../utils/args');
 const { slugify } = require('../utils/tickets');
 const { scheduleTempBan } = require('../utils/tempban');
 const { invokeText } = require('../utils/invokeMessages');
+const { notifyPunishedMember, undeliveredNote } = require('../utils/modDm');
 
 const CATEGORY = 'Moderation';
 
@@ -103,14 +104,19 @@ module.exports = [
 
       const config = getConfig(message.guild.id);
       const ctx = { user, moderator: message.author, reason, guild: message.guild };
-      const dmText = invokeText(config, 'kick', 'dm', ctx);
       const channelText = invokeText(config, 'kick', 'message', ctx);
 
-      if (dmText) await user.send({ embeds: [baseEmbed(COLORS.warning).setDescription(dmText)] }).catch(() => {});
+      // Before the kick — afterwards there's no shared server left to DM through.
+      const delivered = await notifyPunishedMember('kick', { user, guild: message.guild, config, reason, moderator: message.author });
+
       await member.kick(reason);
       await logAction(message.guild, `👢 **${user.tag}** was kicked by ${message.author.tag}\nReason: ${reason}`);
       return message.channel.send({
-        embeds: [baseEmbed(COLORS.success).setDescription(channelText ?? `**${user.tag}** has been kicked.\nReason: ${reason}`)],
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            channelText ?? `**${user.tag}** has been kicked.\nReason: ${reason}${undeliveredNote(delivered)}`,
+          ),
+        ],
       });
     },
   },
@@ -128,16 +134,18 @@ module.exports = [
 
       const config = getConfig(message.guild.id);
       const ctx = { user, moderator: message.author, reason, guild: message.guild };
-      const dmText = invokeText(config, 'ban', 'dm', ctx);
       const channelText = invokeText(config, 'ban', 'message', ctx);
 
-      await user
-        .send({ embeds: [baseEmbed(COLORS.danger).setDescription(dmText ?? `🔨 You have been banned from **${message.guild.name}**.\nReason: ${reason}`)] })
-        .catch(() => {});
+      // Before the ban — afterwards there's no shared server left to DM through.
+      const delivered = await notifyPunishedMember('ban', { user, guild: message.guild, config, reason, moderator: message.author });
+
       await message.guild.members.ban(user.id, { reason });
       await logAction(message.guild, `🔨 **${user.tag}** was banned by ${message.author.tag}\nReason: ${reason}`);
+
+      // Mention renders the name without pinging (allowedMentions is empty).
       return message.channel.send({
-        embeds: [baseEmbed(COLORS.success).setDescription(channelText ?? `**${user.tag}** has been banned.\nReason: ${reason}`)],
+        content: channelText ?? `👍 <@${user.id}> was banned${undeliveredNote(delivered)}`,
+        allowedMentions: { parse: [] },
       });
     },
   },
@@ -246,9 +254,28 @@ module.exports = [
       const member = await message.guild.members.fetch(user.id).catch(() => null);
       if (!member) return message.reply('That user is not in this server.');
       if (!member.moderatable) return message.reply('I cannot timeout that member (check role hierarchy).');
+
+      const config = getConfig(message.guild.id);
+      const ctx = { user, moderator: message.author, reason, guild: message.guild, duration: `${minutes} minute(s)` };
+      const channelText = invokeText(config, 'timeout', 'message', ctx);
+      const delivered = await notifyPunishedMember('timeout', {
+        user,
+        guild: message.guild,
+        config,
+        reason,
+        moderator: message.author,
+        duration: `${minutes} minute(s)`,
+      });
+
       await member.timeout(Math.min(minutes, 40320) * 60 * 1000, reason);
       await logAction(message.guild, `⏱️ **${user.tag}** was timed out for ${minutes}m by ${message.author.tag}\nReason: ${reason}`);
-      return message.channel.send({ embeds: [baseEmbed(COLORS.success).setDescription(`**${user.tag}** has been timed out for ${minutes} minute(s).`)] });
+      return message.channel.send({
+        embeds: [
+          baseEmbed(COLORS.success).setDescription(
+            channelText ?? `**${user.tag}** has been timed out for ${minutes} minute(s).${undeliveredNote(delivered)}`,
+          ),
+        ],
+      });
     },
   },
   {
@@ -282,15 +309,15 @@ module.exports = [
       saveConfig(message.guild.id);
 
       const ctx = { user, moderator: message.author, reason, guild: message.guild };
-      const dmText = invokeText(config, 'warn', 'dm', ctx);
       const channelText = invokeText(config, 'warn', 'message', ctx);
-      if (dmText) await user.send({ embeds: [baseEmbed(COLORS.warning).setDescription(dmText)] }).catch(() => {});
+      const delivered = await notifyPunishedMember('warn', { user, guild: message.guild, config, reason, moderator: message.author });
 
       await logAction(message.guild, `⚠️ **${user.tag}** was warned by ${message.author.tag}\nReason: ${reason}`);
       return message.channel.send({
         embeds: [
           baseEmbed(COLORS.warning).setDescription(
-            channelText ?? `**${user.tag}** has been warned.\nReason: ${reason}\nTotal warnings: ${config.warnings[user.id].length}`,
+            channelText ??
+              `**${user.tag}** has been warned.\nReason: ${reason}\nTotal warnings: ${config.warnings[user.id].length}${undeliveredNote(delivered)}`,
           ),
         ],
       });
