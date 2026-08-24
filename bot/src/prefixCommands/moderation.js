@@ -538,11 +538,15 @@ module.exports = [
 
       const notice = await message.channel.send('🔒 Setting up jail...');
       const result = await jailMember(message.guild, member, message.author, reason);
-      if (result.alreadyJailed) return notice.edit(`**${user.tag}** is already jailed.`);
-      if (result.hierarchyError) return notice.edit('I cannot jail that member (check role hierarchy).');
+      if (result.alreadyJailed) {
+        return notice.edit({ content: null, embeds: [baseEmbed(COLORS.warning).setDescription(`**${user.tag}** is already jailed.`)] });
+      }
+      if (result.hierarchyError) {
+        return notice.edit({ content: null, embeds: [baseEmbed(COLORS.danger).setDescription('I cannot jail that member (check role hierarchy).')] });
+      }
 
       return notice.edit({
-        content: '',
+        content: null,
         embeds: [
           baseEmbed(COLORS.danger).setDescription(
             `🔒 **${user.tag}** has been jailed.\nReason: ${reason}\nThey can now only see ${result.channel}.`,

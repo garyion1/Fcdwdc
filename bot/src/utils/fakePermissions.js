@@ -12,6 +12,7 @@ function resolvePermissionName(input) {
 }
 
 function grantedPermissionNames(member) {
+  if (!member?.guild) return new Set();
   const config = getConfig(member.guild.id);
   const names = new Set();
   for (const [roleId, perms] of Object.entries(config.fakePermissions)) {
@@ -25,7 +26,9 @@ function grantedPermissionNames(member) {
 // touch a member's real Discord permissions, so a role granted "BanMembers"
 // here can ban through the bot without being able to ban natively.
 function hasCommandPermissions(member, required) {
-  if (!member) return false;
+  // No member or no guild context means no way to verify — deny rather than
+  // throw out of the permission check.
+  if (!member?.guild) return false;
   const list = Array.isArray(required) ? required : [required];
   if (member.permissions.has(list)) return true;
 

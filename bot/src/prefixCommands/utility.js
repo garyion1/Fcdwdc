@@ -28,7 +28,11 @@ module.exports = [
     async execute(message, args, config, client) {
       const sent = await message.channel.send('Pinging...');
       const latency = sent.createdTimestamp - message.createdTimestamp;
-      await sent.edit(`🏓 Pong! Latency: ${latency}ms | API: ${Math.round(client.ws.ping)}ms`);
+      // Edited as an embed to match the placeholder the dispatcher wrapped.
+      await sent.edit({
+        content: null,
+        embeds: [baseEmbed().setDescription(`🏓 Pong! Latency: ${latency}ms | API: ${Math.round(client.ws.ping)}ms`)],
+      });
     },
   },
   {
